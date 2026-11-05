@@ -41,3 +41,4 @@ export class FinancialReportQueryDto {
   @IsEnum(PaymentChannel)
   paymentChannel?: PaymentChannel;
 }
+

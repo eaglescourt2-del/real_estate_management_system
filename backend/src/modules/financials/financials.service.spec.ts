@@ -195,3 +195,4 @@ describe('FinancialsService (Stage 7 Financial Management Verification)', () => 
     expect(result.balanceSheetNotes.landownerObligationsOutstanding).toEqual(400000);
   });
 });
+

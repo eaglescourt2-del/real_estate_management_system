@@ -12,3 +12,4 @@ import { SettingsModule } from '../settings/settings.module';
   exports: [FinancialsService, FinancialExcelService, FinancialPdfService],
 })
 export class FinancialsModule {}
+

@@ -42,3 +42,4 @@ export class CreateIncomeDto {
   @IsDateString()
   transactionDate?: string;
 }
+

@@ -58,3 +58,4 @@ export class CreateExpenseDto {
   @IsDateString()
   expenseDate?: string;
 }
+
