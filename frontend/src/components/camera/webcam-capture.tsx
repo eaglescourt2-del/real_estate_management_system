@@ -150,3 +150,4 @@ export function WebcamCapture({ onCapture, onCancel }: WebcamCaptureProps) {
     </div>
   );
 }
+

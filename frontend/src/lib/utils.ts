@@ -11,3 +11,4 @@ export function formatGHS(amount: number | string | null | undefined): string {
   if (isNaN(num)) return 'GH₵ 0.00';
   return `GH₵ ${num.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+

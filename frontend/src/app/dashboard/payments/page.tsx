@@ -568,3 +568,4 @@ export default function PaymentsPage() {
     </div>
   );
 }
+
