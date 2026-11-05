@@ -16,3 +16,4 @@ export class InventoryController {
     return this.inventoryService.getConsolidatedInventorySummary();
   }
 }
+

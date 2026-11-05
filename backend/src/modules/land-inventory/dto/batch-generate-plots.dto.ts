@@ -27,3 +27,4 @@ export class BatchGeneratePlotsDto {
   @IsString()
   halfPlotDimensions?: string = '50ft x 70ft';
 }
+

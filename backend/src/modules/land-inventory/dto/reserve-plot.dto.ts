@@ -21,3 +21,4 @@ export class ReservePlotDto {
   @IsDateString()
   expiresAt: string;
 }
+

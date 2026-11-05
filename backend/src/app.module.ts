@@ -8,6 +8,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { LandInventoryModule } from './modules/land-inventory/land-inventory.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 @Module({
@@ -20,6 +21,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
     AuditLogsModule,
     UploadsModule,
     LandInventoryModule,
+    CrmModule,
   ],
   providers: [
     {

@@ -46,3 +46,4 @@ export class LandLocationsController {
     return this.locationsService.getLocationInventoryBreakdown(id);
   }
 }
+

@@ -41,3 +41,4 @@ export class AllocatePlotDto {
   @IsString()
   salesAgentId?: string;
 }
+

@@ -44,3 +44,4 @@ export class CreatePlotDto {
   @IsEnum(PlotStatus)
   status?: PlotStatus = PlotStatus.AVAILABLE;
 }
+

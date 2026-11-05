@@ -62,3 +62,4 @@ export class CreateLandLocationDto {
   @IsPositive()
   standardHalfPlotPrice: number;
 }
+

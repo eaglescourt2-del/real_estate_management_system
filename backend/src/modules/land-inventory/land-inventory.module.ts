@@ -12,3 +12,4 @@ import { InventoryController } from './inventory.controller';
   exports: [LandLocationsService, PlotsService, InventoryService],
 })
 export class LandInventoryModule {}
+
