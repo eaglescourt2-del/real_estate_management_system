@@ -1,0 +1,808 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ====================================================
+// 1. AUTHENTICATION & ACCESS CONTROL
+// ====================================================
+
+enum UserRole {
+  SUPER_ADMINISTRATOR
+  MANAGING_DIRECTOR
+  ADMINISTRATOR
+  SALES_AGENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+model User {
+  id                    String              @id @default(uuid())
+  email                 String              @unique
+  telephone             String              @unique
+  passwordHash          String
+  firstName             String
+  lastName              String
+  role                  UserRole
+  status                UserStatus          @default(ACTIVE)
+  mfaEnabled            Boolean             @default(false)
+  mfaSecret             String?
+  lastLoginAt           DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relationships
+  assignedCustomers     Customer[]          @relation("AgentCustomers")
+  createdCustomers      Customer[]          @relation("UserCreatedCustomers")
+  plotAllocations       PlotAllocation[]    @relation("AgentAllocations")
+  recordedPayments      CustomerPayment[]   @relation("StaffRecordedPayments")
+  verifiedPayments      CustomerPayment[]   @relation("StaffVerifiedPayments")
+  recordedExpenses      Expense[]           @relation("StaffExpenses")
+  approvedExpenses      Expense[]           @relation("DirectorApprovedExpenses")
+  requestedRefunds      RefundRequest[]     @relation("StaffRequestedRefunds")
+  reviewedRefunds       RefundRequest[]     @relation("StaffReviewedRefunds")
+  approvedRefunds       RefundRequest[]     @relation("DirectorApprovedRefunds")
+  auditLogs             AuditLog[]
+  landownerPayments     LandownerPayment[]  @relation("StaffLandownerPayments")
+
+  @@index([role, status])
+  @@index([email])
+  @@index([telephone])
+}
+
+// ====================================================
+// 2. CUSTOMER & BIOMETRIC PROFILE
+// ====================================================
+
+enum CustomerStatus {
+  PROSPECT
+  ACTIVE
+  DELINQUENT
+  COMPLETED
+  REFUNDED
+}
+
+enum IdType {
+  GHANA_CARD
+  PASSPORT
+  VOTERS_ID
+  DRIVERS_LICENSE
+}
+
+model Customer {
+  id                    String              @id @default(uuid())
+  customerNumber        String              @unique // Format: CUST-YYYYMM-XXXX
+  firstName             String
+  lastName              String
+  otherNames            String?
+  telephone             String              @unique // Ghana format: +233XXXXXXXXX
+  altTelephone          String?
+  email                 String?
+  residentialAddress    String
+  gpsAddress            String?             // Ghana Digital Post Address (e.g. GA-183-9020)
+  occupation            String?
+  idType                IdType              @default(GHANA_CARD)
+  idNumber              String?             // e.g. GHA-712345678-9
+  status                CustomerStatus      @default(ACTIVE)
+  
+  assignedAgentId       String
+  assignedAgent         User                @relation("AgentCustomers", fields: [assignedAgentId], references: [id])
+  createdById           String
+  createdBy             User                @relation("UserCreatedCustomers", fields: [createdById], references: [id])
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relationships
+  photographs           CustomerPhotograph[]
+  documents             CustomerDocument[]
+  allocations           PlotAllocation[]
+  payments              CustomerPayment[]
+  invoices              Invoice[]
+  receipts              Receipt[]
+  refundRequests        RefundRequest[]
+  notifications         NotificationLog[]
+
+  @@index([customerNumber])
+  @@index([telephone])
+  @@index([assignedAgentId])
+  @@index([status])
+}
+
+enum PhotoSource {
+  CAMERA_CAPTURE
+  FILE_UPLOAD
+}
+
+model CustomerPhotograph {
+  id                    String              @id @default(uuid())
+  customerId            String
+  customer              Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  fileUrl               String
+  storageKey            String
+  source                PhotoSource         @default(CAMERA_CAPTURE)
+  mimeType              String              @default("image/jpeg")
+  fileSizeBytes         Int
+  isPrimary             Boolean             @default(true)
+  capturedAt            DateTime            @default(now())
+
+  @@index([customerId, isPrimary])
+}
+
+model CustomerDocument {
+  id                    String              @id @default(uuid())
+  customerId            String
+  customer              Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  documentTitle         String
+  documentType          String
+  fileUrl               String
+  storageKey            String
+  uploadedAt            DateTime            @default(now())
+
+  @@index([customerId])
+}
+
+// ====================================================
+// 3. LAND LOCATION & INVENTORY MANAGEMENT
+// ====================================================
+
+model LandLocation {
+  id                    String              @id @default(uuid())
+  name                  String              @unique
+  region                String
+  district              String
+  geographicalAddress   String
+  latitude              Decimal             @db.Decimal(10, 8)
+  longitude             Decimal             @db.Decimal(11, 8)
+  totalLandSizeAcres    Decimal             @db.Decimal(10, 2)
+  totalPlotsCount       Int
+  plotDimensionsDesc    String              @default("70 x 100 ft (Full Plot) / 50 x 70 ft (Half Plot)")
+  standardFullPlotPrice Decimal             @db.Decimal(14, 2)
+  standardHalfPlotPrice Decimal             @db.Decimal(14, 2)
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relationships
+  plots                 Plot[]
+  landownerAgreements   LandownerAgreement[]
+  expenses              Expense[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+enum PlotType {
+  FULL_PLOT
+  HALF_PLOT
+}
+
+enum HalfPlotPosition {
+  NONE
+  PART_A
+  PART_B
+}
+
+enum PlotStatus {
+  AVAILABLE
+  RESERVED
+  PARTIALLY_SOLD
+  SOLD
+  BLOCKED
+  CANCELLED
+}
+
+model Plot {
+  id                    String              @id @default(uuid())
+  landLocationId        String
+  landLocation          LandLocation        @relation(fields: [landLocationId], references: [id], onDelete: Restrict)
+  
+  plotNumber            String
+  basePlotNumber        Int
+  plotType              PlotType            @default(FULL_PLOT)
+  halfPosition          HalfPlotPosition    @default(NONE)
+  
+  parentPlotId          String?
+  parentPlot            Plot?               @relation("PlotHierarchy", fields: [parentPlotId], references: [id])
+  childHalfPlots        Plot[]              @relation("PlotHierarchy")
+
+  dimensions            String
+  cornerPegCoords       Json?
+  status                PlotStatus          @default(AVAILABLE)
+  version               Int                 @default(1)
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relationships
+  allocations           PlotAllocation[]
+  reservations          Reservation[]
+  refundRequests        RefundRequest[]
+
+  @@unique([landLocationId, plotNumber])
+  @@index([landLocationId, status])
+  @@index([basePlotNumber])
+  @@index([parentPlotId])
+}
+
+// ====================================================
+// 4. PLOT ALLOCATIONS & RESERVATIONS
+// ====================================================
+
+enum AllocationType {
+  FULL_PLOT
+  HALF_PLOT
+}
+
+enum AllocationStatus {
+  RESERVED
+  ACTIVE_INSTALMENT
+  PAID_IN_FULL
+  CANCELLED
+  TRANSFERRED
+}
+
+model PlotAllocation {
+  id                    String              @id @default(uuid())
+  allocationNumber      String              @unique
+  customerId            String
+  customer              Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  plotId                String
+  plot                  Plot                @relation(fields: [plotId], references: [id], onDelete: Restrict)
+  salesAgentId          String
+  salesAgent            User                @relation("AgentAllocations", fields: [salesAgentId], references: [id])
+
+  allocationType        AllocationType
+  agreedPrice           Decimal             @db.Decimal(14, 2)
+  depositRequired       Decimal             @db.Decimal(14, 2)
+  totalAmountPaid       Decimal             @default(0) @db.Decimal(14, 2)
+  outstandingBalance    Decimal             @db.Decimal(14, 2)
+  
+  paymentPlanMonths     Int                 @default(1)
+  status                AllocationStatus    @default(RESERVED)
+  
+  allocatedAt           DateTime            @default(now())
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  cancellationReason    String?
+
+  // Relationships
+  payments              CustomerPayment[]
+  invoices              Invoice[]
+  receipts              Receipt[]
+
+  @@index([customerId])
+  @@index([plotId])
+  @@index([salesAgentId])
+  @@index([status])
+}
+
+model Reservation {
+  id                    String              @id @default(uuid())
+  plotId                String
+  plot                  Plot                @relation(fields: [plotId], references: [id])
+  customerName          String
+  customerPhone         String
+  reservedByUserId      String
+  reservationFee        Decimal             @db.Decimal(14, 2)
+  expiresAt             DateTime
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+
+  @@index([plotId, isActive])
+}
+
+// ====================================================
+// 5. CUSTOMER PAYMENTS & LEDGER
+// ====================================================
+
+enum PaymentCategory {
+  INITIAL_DEPOSIT
+  INSTALMENT
+  FULL_OUTRIGHT
+  RESERVATION_FEE
+  LEGAL_DOCUMENTATION_FEE
+  SURVEY_INDENTURE_FEE
+}
+
+enum PaymentChannel {
+  MOBILE_MONEY_MTN
+  MOBILE_MONEY_TELECEL
+  MOBILE_MONEY_AT
+  BANK_TRANSFER
+  BANK_DIRECT_DEPOSIT
+  CASH
+  CHEQUE
+  CARD_PAYSTACK
+  CARD_FLUTTERWAVE
+}
+
+enum PaymentVerificationStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  RECONCILED
+  REVERSED
+}
+
+model CustomerPayment {
+  id                    String                    @id @default(uuid())
+  transactionReference  String                    @unique
+  allocationId          String
+  allocation            PlotAllocation            @relation(fields: [allocationId], references: [id], onDelete: Restrict)
+  customerId            String
+  customer              Customer                  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  
+  amount                Decimal                   @db.Decimal(14, 2)
+  currency              String                    @default("GHS")
+  paymentCategory       PaymentCategory
+  paymentChannel        PaymentChannel
+  
+  bankName              String?
+  bankBranch            String?
+  chequeNumber          String?
+  externalGatewayRef    String?
+  supportingDocumentUrl String?
+  
+  recordedByUserId      String
+  recordedByUser        User                      @relation("StaffRecordedPayments", fields: [recordedByUserId], references: [id])
+  verifiedByUserId      String?
+  verifiedByUser        User?                     @relation("StaffVerifiedPayments", fields: [verifiedByUserId], references: [id])
+  
+  status                PaymentVerificationStatus @default(VERIFIED)
+  isReversed            Boolean                   @default(false)
+  reversalReason        String?
+  reversalAuditId       String?
+  
+  paymentDate           DateTime                  @default(now())
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  // Relationships
+  receipt               Receipt?
+  incomeTransaction     IncomeTransaction?
+
+  @@index([allocationId])
+  @@index([customerId])
+  @@index([paymentDate])
+  @@index([status])
+  @@index([transactionReference])
+}
+
+// ====================================================
+// 6. INVOICES & SERIALIZED RECEIPTS
+// ====================================================
+
+model Invoice {
+  id                    String              @id @default(uuid())
+  invoiceNumber         String              @unique
+  allocationId          String
+  allocation            PlotAllocation      @relation(fields: [allocationId], references: [id])
+  customerId            String
+  customer              Customer            @relation(fields: [customerId], references: [id])
+  
+  subtotalAmount        Decimal             @db.Decimal(14, 2)
+  totalAmountDue        Decimal             @db.Decimal(14, 2)
+  balanceRemaining      Decimal             @db.Decimal(14, 2)
+  dueDate               DateTime
+  issuedDate            DateTime            @default(now())
+  pdfUrl                String?
+  notes                 String?
+
+  @@index([invoiceNumber])
+  @@index([customerId])
+  @@index([allocationId])
+}
+
+model Receipt {
+  id                    String              @id @default(uuid())
+  receiptNumber         String              @unique
+  paymentId             String              @unique
+  payment               CustomerPayment     @relation(fields: [paymentId], references: [id])
+  allocationId          String
+  allocation            PlotAllocation      @relation(fields: [allocationId], references: [id])
+  customerId            String
+  customer              Customer            @relation(fields: [customerId], references: [id])
+  
+  amountReceived        Decimal             @db.Decimal(14, 2)
+  outstandingBalanceAfter Decimal           @db.Decimal(14, 2)
+  issuedDate            DateTime            @default(now())
+  pdfUrl                String?
+
+  @@index([receiptNumber])
+  @@index([customerId])
+}
+
+// ====================================================
+// 7. LANDOWNER OBLIGATIONS & DISBURSEMENTS
+// ====================================================
+
+model Landowner {
+  id                    String              @id @default(uuid())
+  fullName              String
+  telephone             String
+  altTelephone          String?
+  email                 String?
+  residentialAddress    String
+  bankName              String?
+  bankAccountNumber     String?
+  bankBranch            String?
+  momoNumber            String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relationships
+  agreements            LandownerAgreement[]
+  paymentsReceived      LandownerPayment[]
+
+  @@index([fullName])
+}
+
+model LandownerAgreement {
+  id                    String              @id @default(uuid())
+  agreementNumber       String              @unique
+  landownerId           String
+  landowner             Landowner           @relation(fields: [landownerId], references: [id], onDelete: Restrict)
+  landLocationId        String
+  landLocation          LandLocation        @relation(fields: [landLocationId], references: [id], onDelete: Restrict)
+  
+  agreedTotalAmount     Decimal             @db.Decimal(14, 2)
+  totalPaidAmount       Decimal             @default(0) @db.Decimal(14, 2)
+  outstandingBalance    Decimal             @db.Decimal(14, 2)
+  signedDate            DateTime
+  contractDocumentUrl   String?
+  termsNotes            String?
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relationships
+  payments              LandownerPayment[]
+
+  @@index([landownerId])
+  @@index([landLocationId])
+}
+
+model LandownerPayment {
+  id                    String              @id @default(uuid())
+  voucherNumber         String              @unique
+  agreementId           String
+  agreement             LandownerAgreement  @relation(fields: [agreementId], references: [id], onDelete: Restrict)
+  landownerId           String
+  landowner             Landowner           @relation(fields: [landownerId], references: [id], onDelete: Restrict)
+  
+  amount                Decimal             @db.Decimal(14, 2)
+  paymentDate           DateTime            @default(now())
+  paymentChannel        PaymentChannel
+  bankTransactionRef    String?
+  chequeNumber          String?
+  
+  recordedByUserId      String
+  recordedByUser        User                @relation("StaffLandownerPayments", fields: [recordedByUserId], references: [id])
+  
+  pdfVoucherUrl         String?
+  remarks               String?
+  createdAt             DateTime            @default(now())
+
+  // Ties to corporate expense engine
+  expenseRecord         Expense?
+
+  @@index([agreementId])
+  @@index([landownerId])
+  @@index([voucherNumber])
+}
+
+// ====================================================
+// 8. CUSTOMER REFUND GOVERNANCE & QUARANTINE
+// ====================================================
+
+enum RefundStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PARTIALLY_REFUNDED
+  FULLY_REFUNDED
+}
+
+model RefundRequest {
+  id                    String              @id @default(uuid())
+  refundNumber          String              @unique
+  customerId            String
+  customer              Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  plotId                String
+  plot                  Plot                @relation(fields: [plotId], references: [id], onDelete: Restrict)
+  
+  totalPaymentsReceived Decimal             @db.Decimal(14, 2)
+  totalDeductions       Decimal             @default(0) @db.Decimal(14, 2)
+  netRefundAmount       Decimal             @db.Decimal(14, 2)
+  totalRefundPaid       Decimal             @default(0) @db.Decimal(14, 2)
+  remainingRefundDue    Decimal             @db.Decimal(14, 2)
+  
+  reason                String
+  status                RefundStatus        @default(REQUESTED)
+  
+  requestedByUserId     String
+  requestedByUser       User                @relation("StaffRequestedRefunds", fields: [requestedByUserId], references: [id])
+  reviewedByUserId      String?
+  reviewedByUser        User?               @relation("StaffReviewedRefunds", fields: [reviewedByUserId], references: [id])
+  approvedByUserId      String?
+  approvedByUser        User?               @relation("DirectorApprovedRefunds", fields: [approvedByUserId], references: [id])
+  
+  rejectionReason       String?
+  approvalDate          DateTime?
+  statementPdfUrl       String?
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relationships
+  deductions            RefundDeduction[]
+  refundDisbursements   RefundPayment[]
+
+  @@index([customerId])
+  @@index([plotId])
+  @@index([status])
+  @@index([refundNumber])
+}
+
+model RefundDeduction {
+  id                    String              @id @default(uuid())
+  refundRequestId       String
+  refundRequest         RefundRequest       @relation(fields: [refundRequestId], references: [id], onDelete: Cascade)
+  deductionName         String
+  amount                Decimal             @db.Decimal(14, 2)
+  explanation           String
+  createdAt             DateTime            @default(now())
+
+  @@index([refundRequestId])
+}
+
+model RefundPayment {
+  id                    String              @id @default(uuid())
+  refundDisbursementRef String              @unique
+  refundRequestId       String
+  refundRequest         RefundRequest       @relation(fields: [refundRequestId], references: [id], onDelete: Restrict)
+  
+  amount                Decimal             @db.Decimal(14, 2)
+  disbursementDate      DateTime            @default(now())
+  paymentChannel        PaymentChannel
+  transactionReference  String?
+  notes                 String?
+  receiptPdfUrl         String?
+  
+  createdAt             DateTime            @default(now())
+
+  // Ties to corporate expense engine
+  expenseRecord         Expense?
+
+  @@index([refundRequestId])
+}
+
+// ====================================================
+// 9. DAILY INCOME & EXPENSE LEDGER
+// ====================================================
+
+enum IncomeSourceCategory {
+  LAND_SALE_DEPOSIT
+  LAND_SALE_INSTALMENT
+  LAND_SALE_OUTRIGHT
+  RESERVATION_FEE
+  LEGAL_SURVEY_INCOME
+  OTHER_OPERATIONAL_INCOME
+}
+
+model IncomeTransaction {
+  id                    String                @id @default(uuid())
+  transactionRef        String                @unique
+  customerPaymentId     String?               @unique
+  customerPayment       CustomerPayment?      @relation(fields: [customerPaymentId], references: [id])
+  
+  sourceCategory        IncomeSourceCategory
+  description           String
+  amount                Decimal               @db.Decimal(14, 2)
+  currency              String                @default("GHS")
+  transactionDate       DateTime              @default(now())
+  paymentChannel        PaymentChannel
+  
+  createdAt             DateTime              @default(now())
+
+  @@index([transactionDate])
+  @@index([sourceCategory])
+}
+
+enum ExpenseCategoryCode {
+  LAND_ACQUISITION
+  LANDOWNER_PAYMENT
+  STAFF_SALARY_ALLOWANCE
+  MARKETING_ADVERTISING
+  TRANSPORTATION_FUEL
+  OFFICE_RENT_UTILITIES
+  LEGAL_DOCUMENTATION
+  SITE_DEVELOPMENT_SURVEY
+  ADMINISTRATIVE_EXPENSE
+  CUSTOMER_REFUND_DISBURSEMENT
+  OTHER_OPERATIONAL
+}
+
+enum ExpenseApprovalStatus {
+  PENDING_MD_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+model Expense {
+  id                    String                @id @default(uuid())
+  expenseReference      String                @unique
+  landLocationId        String?
+  landLocation          LandLocation?         @relation(fields: [landLocationId], references: [id])
+  
+  landownerPaymentId    String?               @unique
+  landownerPayment      LandownerPayment?     @relation(fields: [landownerPaymentId], references: [id])
+  
+  refundPaymentId       String?               @unique
+  refundPayment         RefundPayment?        @relation(fields: [refundPaymentId], references: [id])
+
+  categoryCode          ExpenseCategoryCode
+  description           String
+  amount                Decimal               @db.Decimal(14, 2)
+  currency              String                @default("GHS")
+  expenseDate           DateTime              @default(now())
+  paymentChannel        PaymentChannel
+  recipient             String
+  
+  supportingReceiptUrl  String?
+  
+  recordedByUserId      String
+  recordedByUser        User                  @relation("StaffExpenses", fields: [recordedByUserId], references: [id])
+  approvedByUserId      String?
+  approvedByUser        User?                 @relation("DirectorApprovedExpenses", fields: [approvedByUserId], references: [id])
+  
+  approvalStatus        ExpenseApprovalStatus @default(APPROVED)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([categoryCode])
+  @@index([expenseDate])
+  @@index([approvalStatus])
+  @@index([landLocationId])
+}
+
+// ====================================================
+// 10. NOTIFICATION ENGINE (WHATSAPP & RESEND EMAIL)
+// ====================================================
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum NotificationTriggerEvent {
+  CUSTOMER_REGISTRATION
+  PAYMENT_RECEIVED
+  INVOICE_GENERATED
+  RECEIPT_ISSUED
+  PAYMENT_REMINDER_DUE
+  REFUND_REQUEST_SUBMITTED
+  REFUND_APPROVAL_STATUS
+  REFUND_PAYMENT_DISBURSED
+  PLOT_ALLOCATION_CONFIRMATION
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model NotificationTemplate {
+  id                    String                    @id @default(uuid())
+  channel               NotificationChannel
+  event                 NotificationTriggerEvent
+  name                  String
+  templateIdentifier    String
+  bodyTemplate          String
+  isActive              Boolean                   @default(true)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@unique([channel, event])
+}
+
+model NotificationLog {
+  id                    String                    @id @default(uuid())
+  idempotencyKey        String                    @unique
+  customerId            String
+  customer              Customer                  @relation(fields: [customerId], references: [id])
+  channel               NotificationChannel
+  event                 NotificationTriggerEvent
+  recipientDestination  String
+  messageContent        String
+  status                NotificationStatus        @default(QUEUED)
+  retryCount            Int                       @default(0)
+  externalMessageId     String?
+  failureReason         String?
+  sentAt                DateTime?
+  deliveredAt           DateTime?
+  createdAt             DateTime                  @default(now())
+
+  @@index([customerId])
+  @@index([status])
+  @@index([event])
+}
+
+// ====================================================
+// 11. AUDIT TRAIL & SYSTEM SETTINGS
+// ====================================================
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE_ATTEMPT
+  PLOT_ALLOCATION
+  PLOT_CANCELLATION
+  PAYMENT_RECORDED
+  PAYMENT_REVERSED
+  REFUND_REQUESTED
+  REFUND_APPROVED
+  REFUND_REJECTED
+  USER_LOGIN
+  USER_MFA_CHALLENGE
+  SETTINGS_MODIFIED
+}
+
+model AuditLog {
+  id                    String              @id @default(uuid())
+  userId                String?
+  user                  User?               @relation(fields: [userId], references: [id])
+  action                AuditAction
+  entityName            String
+  entityId              String
+  oldValues             Json?
+  newValues             Json?
+  ipAddress             String?
+  userAgent             String?
+  createdAt             DateTime            @default(now())
+
+  @@index([entityName, entityId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  id                    String              @id @default("SYSTEM_CONFIG")
+  companyName           String              @default("Real Estate Management System")
+  companyTagline        String?             @default("Ghanaian Property & Land Development")
+  companyEmail          String              @default("info@realestatedev.gh")
+  companyPhone          String              @default("+233 30 000 0000")
+  companyAddress        String              @default("Accra, Ghana")
+  companyLogoUrl        String?
+  taxIdentificationNumber String?
+  defaultCurrency       String              @default("GHS")
+  currencySymbol        String              @default("GH₵")
+  
+  // Payment Gateway Configurations
+  paystackPublicKey     String?
+  paystackSecretKey     String?
+  flutterwavePublicKey  String?
+  flutterwaveSecretKey  String?
+  
+  // Communication Service Credentials
+  whatsappBusinessAccountId String?
+  whatsappPhoneNumberId String?
+  whatsappAccessToken   String?
+  resendApiKey          String?
+  emailFromAddress      String              @default("receipts@realestatedev.gh")
+  
+  updatedAt             DateTime            @updatedAt
+}

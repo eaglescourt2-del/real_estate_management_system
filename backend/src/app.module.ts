@@ -1,0 +1,29 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    SettingsModule,
+    AuditLogsModule,
+    UploadsModule,
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
+  ],
+})
+export class AppModule {}
