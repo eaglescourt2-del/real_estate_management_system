@@ -10,3 +10,4 @@ import { EmailService } from './channels/email.service';
   exports: [NotificationsService, WhatsAppService, EmailService],
 })
 export class NotificationsModule {}
+

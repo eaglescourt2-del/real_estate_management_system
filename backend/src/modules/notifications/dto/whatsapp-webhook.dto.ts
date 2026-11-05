@@ -22,3 +22,4 @@ export class UpdateNotificationTemplateDto {
   @IsOptional()
   isActive?: boolean;
 }
+

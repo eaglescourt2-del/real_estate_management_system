@@ -48,3 +48,4 @@ export class QueryNotificationsDto {
   @Type(() => Number)
   limit?: number = 20;
 }
+

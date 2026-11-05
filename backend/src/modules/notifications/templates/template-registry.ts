@@ -268,3 +268,4 @@ export const DEFAULT_NOTIFICATION_TEMPLATES: DefaultTemplateDefinition[] = [
     `,
   },
 ];
+

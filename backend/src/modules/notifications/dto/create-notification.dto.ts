@@ -38,3 +38,4 @@ export class CreateNotificationDto {
   @IsOptional()
   customMessage?: string;
 }
+
