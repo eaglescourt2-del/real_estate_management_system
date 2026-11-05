@@ -47,3 +47,4 @@ export class CreateLandownerDto {
   @IsString()
   momoNumber?: string;
 }
+

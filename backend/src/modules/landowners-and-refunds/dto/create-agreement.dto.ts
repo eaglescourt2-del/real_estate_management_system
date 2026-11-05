@@ -38,3 +38,4 @@ export class CreateAgreementDto {
   @IsString()
   termsNotes?: string;
 }
+

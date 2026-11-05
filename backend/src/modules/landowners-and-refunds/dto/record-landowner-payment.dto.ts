@@ -49,3 +49,4 @@ export class RecordLandownerPaymentDto {
   @IsDateString()
   paymentDate?: string;
 }
+

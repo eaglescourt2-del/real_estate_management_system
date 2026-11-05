@@ -11,6 +11,7 @@ import { LandInventoryModule } from './modules/land-inventory/land-inventory.mod
 import { CrmModule } from './modules/crm/crm.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { LandownersRefundsModule } from './modules/landowners-and-refunds/landowners-refunds.module';
+import { FinancialsModule } from './modules/financials/financials.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 @Module({
@@ -26,6 +27,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
     CrmModule,
     PaymentsModule,
     LandownersRefundsModule,
+    FinancialsModule,
   ],
   providers: [
     {

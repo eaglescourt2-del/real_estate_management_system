@@ -67,3 +67,4 @@ export class LandownersController {
     return this.landownersService.recordLandownerPayment(dto, staffUser);
   }
 }
+
