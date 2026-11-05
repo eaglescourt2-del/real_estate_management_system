@@ -82,3 +82,4 @@ export class UpdateSettingsDto {
   @IsString()
   emailFromAddress?: string;
 }
+

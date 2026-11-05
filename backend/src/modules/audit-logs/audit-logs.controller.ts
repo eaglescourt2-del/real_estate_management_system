@@ -31,3 +31,4 @@ export class AuditLogsController {
     return this.auditLogsService.findAll({ page, limit, userId, entityName, action });
   }
 }
+

@@ -63,3 +63,4 @@ export class UsersController {
     return this.usersService.updateRole(id, role, currentUserId);
   }
 }
+

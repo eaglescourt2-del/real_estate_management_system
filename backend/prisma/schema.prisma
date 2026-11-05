@@ -806,3 +806,4 @@ model SystemSetting {
   
   updatedAt             DateTime            @updatedAt
 }
+

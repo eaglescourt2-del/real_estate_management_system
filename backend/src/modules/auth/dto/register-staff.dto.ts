@@ -38,3 +38,4 @@ export class RegisterStaffDto {
   @IsEnum(UserRole, { message: 'Role must be one of the 4 defined corporate roles.' })
   role: UserRole;
 }
+

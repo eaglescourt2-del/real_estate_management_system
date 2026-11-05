@@ -7,6 +7,7 @@ import { UsersModule } from './modules/users/users.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { LandInventoryModule } from './modules/land-inventory/land-inventory.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 @Module({
@@ -18,6 +19,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
     SettingsModule,
     AuditLogsModule,
     UploadsModule,
+    LandInventoryModule,
   ],
   providers: [
     {

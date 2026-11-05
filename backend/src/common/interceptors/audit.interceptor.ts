@@ -64,3 +64,4 @@ export class AuditInterceptor implements NestInterceptor {
     return parts[0] ? parts[0].toUpperCase() : 'UNKNOWN';
   }
 }
+

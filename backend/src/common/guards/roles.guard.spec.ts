@@ -59,3 +59,4 @@ describe('RolesGuard (RBAC 4-Role Verification)', () => {
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
 });
+
