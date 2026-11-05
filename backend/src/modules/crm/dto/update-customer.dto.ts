@@ -63,3 +63,4 @@ export class UpdateCustomerDto {
   @IsString()
   assignedAgentId?: string;
 }
+

@@ -22,3 +22,4 @@ export class AddCustomerDocumentDto {
   @IsNotEmpty()
   storageKey: string;
 }
+

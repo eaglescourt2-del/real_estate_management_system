@@ -88,3 +88,4 @@ export class CreateCustomerDto {
   @IsEnum(PhotoSource)
   photoSource?: PhotoSource;
 }
+

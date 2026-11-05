@@ -10,3 +10,4 @@ import { UploadsModule } from '../uploads/uploads.module';
   exports: [CustomersService],
 })
 export class CrmModule {}
+
