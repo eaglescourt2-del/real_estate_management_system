@@ -11,3 +11,4 @@ export class ReversePaymentDto {
   @MinLength(10, { message: 'Reversal reason must be detailed (at least 10 characters).' })
   reversalReason: string;
 }
+

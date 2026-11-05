@@ -10,6 +10,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { LandInventoryModule } from './modules/land-inventory/land-inventory.module';
 import { CrmModule } from './modules/crm/crm.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { LandownersRefundsModule } from './modules/landowners-and-refunds/landowners-refunds.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 @Module({
@@ -24,6 +25,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
     LandInventoryModule,
     CrmModule,
     PaymentsModule,
+    LandownersRefundsModule,
   ],
   providers: [
     {

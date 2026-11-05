@@ -212,3 +212,4 @@ describe('PaymentsService (Stage 5 Payment Management Verification)', () => {
     ).rejects.toThrow(ForbiddenException);
   });
 });
+

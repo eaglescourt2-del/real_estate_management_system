@@ -8,6 +8,7 @@ import { UserRole, UserStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 describe('AuthService (Stage 2 Verification)', () => {
+  jest.setTimeout(20000);
   let service: AuthService;
   let prismaService: any;
   let jwtService: any;

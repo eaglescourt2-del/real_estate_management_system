@@ -11,3 +11,4 @@ import { SettingsModule } from '../settings/settings.module';
   exports: [PaymentsService, PdfGeneratorService],
 })
 export class PaymentsModule {}
+

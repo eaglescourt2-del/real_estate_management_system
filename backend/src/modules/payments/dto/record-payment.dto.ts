@@ -67,3 +67,4 @@ export class RecordPaymentDto {
   @IsDateString()
   paymentDate?: string;
 }
+

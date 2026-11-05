@@ -48,3 +48,4 @@ export class PaymentQueryDto {
   @Min(1)
   limit?: number = 25;
 }
+
