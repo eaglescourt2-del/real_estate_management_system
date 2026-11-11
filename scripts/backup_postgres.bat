@@ -15,3 +15,4 @@ if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
 docker exec -t real_estate_postgres pg_dump -U postgres -d real_estate_db --clean --if-exists --no-owner > "%BACKUP_FILE%"
 
 echo [%date% %time%] Database backup completed successfully: %BACKUP_FILE%
+

@@ -49,3 +49,4 @@ USER nestjs
 EXPOSE 4000
 
 CMD ["sh", "-c", "npx prisma db push && node dist/main"]
+

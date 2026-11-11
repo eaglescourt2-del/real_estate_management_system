@@ -22,3 +22,4 @@ echo "[$(date)] Backup completed successfully: ${BACKUP_FILE}"
 # Retention Policy: Delete backups older than 30 days
 find "${BACKUP_DIR}" -type f -name "real_estate_db_*.sql.gz" -mtime +30 -delete
 echo "[$(date)] Retention policy applied. Backups older than 30 days purged."
+
