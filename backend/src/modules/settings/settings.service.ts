@@ -18,14 +18,16 @@ export class SettingsService {
       settings = await this.prisma.systemSetting.create({
         data: {
           id: this.SETTING_ID,
-          companyName: 'Ghana Real Estate Developers',
-          companyTagline: 'Securing Your Land & Future with Trust',
-          companyEmail: 'info@realestatedev.gh',
-          companyPhone: '+233 30 200 0000',
-          companyAddress: 'Airport Residential Area, Accra, Ghana',
-          companyLogoUrl: null,
+          companyName: 'Potential Investment Real Estate Ltd.',
+          companyTagline: 'Your Trusted Partner in Land Sales',
+          companyEmail: 'potentialrealestate04@gmail.com',
+          companyPhone: '0541196364',
+          companyAddress: 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.',
+          companyLogoUrl: '/uploads/logo.png',
           defaultCurrency: 'GHS',
           currencySymbol: 'GH₵',
+          emailFromAddress: 'potentialrealestate04@gmail.com',
+          whatsappPhoneNumberId: '0541196364',
         },
       });
     }

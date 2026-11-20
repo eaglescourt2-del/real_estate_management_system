@@ -1145,13 +1145,13 @@ export default function RefundsPage() {
               <div className="border-b-2 border-slate-900 pb-3 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-black uppercase tracking-wider text-slate-950 leading-tight">
-                    {settings?.companyName || 'REAL ESTATE DEVELOPMENT GHANA LTD'}
+                    {settings?.companyName || 'POTENTIAL INVESTMENT REAL ESTATE LTD.'}
                   </h2>
                   <p className="text-xs text-slate-700 font-semibold leading-tight mt-0.5">
-                    Corporate Head Office: {settings?.companyAddress || '14 Kofi Annan Street, Airport Residential Area, Accra'}
+                    Corporate Head Office: {settings?.companyAddress || 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.'}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Tel: {settings?.companyPhone || '+233 (0) 244 000 001'} | Email: {settings?.companyEmail || 'accounts@realestatedev.gh'}
+                    Tel: {settings?.companyPhone || '0541196364'} | Email: {settings?.companyEmail || 'potentialrealestate04@gmail.com'}
                   </p>
                 </div>
                 <div className="text-right">
@@ -1343,7 +1343,7 @@ export default function RefundsPage() {
                 </div>
 
                 <p className="text-[10px] text-slate-400 text-center italic mt-2">
-                  This voucher serves as statutory proof of contractual refund disbursement issued by Real Estate Development Ghana Ltd.
+                  This voucher serves as statutory proof of contractual refund disbursement issued by Potential Investment Real Estate Ltd.
                 </p>
               </div>
             </div>

@@ -781,7 +781,7 @@ export default function CustomersPage() {
     const balance = formatGHS(c.financials?.outstandingBalance || c.ledger?.totalOutstandingBalance || 0);
     const paymentTerm = c.paymentTerm || 'Outright';
 
-    const message = `*REAL ESTATE DEVELOPMENT GHANA LTD*
+    const message = `*POTENTIAL INVESTMENT REAL ESTATE LTD.*
 _Official Customer Registration & Land Acquisition Deed_
 
 Dear *${c.firstName} ${c.lastName}*,
@@ -798,8 +798,8 @@ Your land registration and parcel allocation has been recorded successfully. Her
 
 Your official deed application form is on file. Please visit our client portal or contact your relationship officer for documents and title processing.
 
-Thank you for choosing Real Estate Development Ghana Ltd!
-📞 Tel: +233 (0) 244 000 001 | 📍 14 Kofi Annan Street, Airport Residential Area, Accra`;
+Thank you for choosing Potential Investment Real Estate Ltd.!
+📞 Tel: 0541196364 | ✉️ potentialrealestate04@gmail.com | 📍 Ashaiman New Tulaku, Adjacent to New Tulaku Police Station`;
 
     const url = `https://wa.me/${intlPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -825,7 +825,7 @@ Thank you for choosing Real Estate Development Ghana Ltd!
     const subject = encodeURIComponent(`Official Land Registration & Plot Allocation Deed - ${c.customerNumber}`);
     const body = encodeURIComponent(`Dear ${c.firstName} ${c.lastName},
 
-Thank you for choosing REAL ESTATE DEVELOPMENT GHANA LTD.
+Thank you for choosing POTENTIAL INVESTMENT REAL ESTATE LTD.
 
 Here are the confirmed details of your official land registration and plot acquisition:
 
@@ -841,9 +841,9 @@ Your customer form and indenture documentation are being processed in accordance
 
 Kind regards,
 Client Services & Conveyancing Department
-Real Estate Development Ghana Ltd
-14 Kofi Annan Street, Airport Residential Area, Accra
-Tel: +233 (0) 244 000 001`);
+Potential Investment Real Estate Ltd.
+Ashaiman New Tulaku, Adjacent to New Tulaku Police Station
+Tel: 0541196364 | Email: potentialrealestate04@gmail.com`);
 
     window.open(`mailto:${c.email}?subject=${subject}&body=${body}`, '_blank');
   };
@@ -2926,13 +2926,13 @@ Tel: +233 (0) 244 000 001`);
                 <div className="print-break-avoid border-b-2 border-slate-900 pb-3 flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-black uppercase tracking-wider text-slate-950 leading-tight">
-                      REAL ESTATE DEVELOPMENT GHANA LTD
+                      POTENTIAL INVESTMENT REAL ESTATE LTD.
                     </h2>
                     <p className="text-xs text-slate-700 font-semibold leading-tight mt-0.5">
-                      Corporate Head Office: 14 Kofi Annan Street, Airport Residential Area, Accra
+                      Corporate Head Office: Ashaiman New Tulaku, Adjacent to New Tulaku Police Station
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Tel: +233 (0) 244 000 001 | Email: info@realestatedev.gh | Web: www.realestatedev.gh
+                      Tel: 0541196364 | Email: potentialrealestate04@gmail.com
                     </p>
                   </div>
                   <div className="text-right">
@@ -3105,7 +3105,7 @@ Tel: +233 (0) 244 000 001`);
                 {/* Section 4: Declaration & Execution Signatures */}
                 <div className="print-break-avoid space-y-2.5 pt-2 border-t-2 border-slate-900">
                   <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed">
-                    <strong>Statutory Declaration:</strong> I/We hereby apply for the plot(s) detailed above under the governing terms of Real Estate Development Ghana Ltd and pursuant to the Lands Commission Act 2020 (Act 1036). I/We certify that all information provided herein is accurate and complete, and acknowledge the covenants, conditions, and payment schedule herein.
+                    <strong>Statutory Declaration:</strong> I/We hereby apply for the plot(s) detailed above under the governing terms of Potential Investment Real Estate Ltd. and pursuant to the Lands Commission Act 2020 (Act 1036). I/We certify that all information provided herein is accurate and complete, and acknowledge the covenants, conditions, and payment schedule herein.
                   </div>
 
                   {/* Generous Formal Execution Signature Pods */}
@@ -3190,7 +3190,7 @@ Tel: +233 (0) 244 000 001`);
                   <div className="flex items-center justify-between p-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-xs">
                     <div className="text-slate-600">
                       <span className="font-bold text-slate-800 uppercase block text-[11px]">Official Corporate Endorsement:</span>
-                      <span className="text-[11px]">This application deed is recorded in the Lands Registry Database of Real Estate Development Ghana Ltd.</span>
+                      <span className="text-[11px]">This application deed is recorded in the Lands Registry Database of Potential Investment Real Estate Ltd.</span>
                     </div>
                     <div className="h-12 w-36 border-2 border-dashed border-slate-400 rounded-lg flex items-center justify-center text-slate-400 text-center font-bold text-[10px] uppercase">
                       Affix Official Seal / Stamp Here

@@ -1010,17 +1010,17 @@ export default function FinancialsPage() {
                   <div>
                     <div className="flex items-center space-x-2">
                       <div className="h-7 w-7 rounded-lg bg-slate-900 flex items-center justify-center text-white font-black text-sm">
-                        RE
+                        PI
                       </div>
                       <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-950 uppercase">
-                        {settings?.companyName || 'REAL ESTATE DEVELOPMENT GHANA LTD'}
+                        {settings?.companyName || 'POTENTIAL INVESTMENT REAL ESTATE LTD.'}
                       </h2>
                     </div>
                     <p className="text-[11px] font-semibold text-slate-600 tracking-wide mt-0.5">
-                      {settings?.companyTagline || 'Ghanaian Real Estate & Land Management System'}
+                      {settings?.companyTagline || 'Your Trusted Partner in Land Sales'}
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      {settings?.companyAddress || 'Accra, Greater Accra Region, Ghana'} | Tel: {settings?.companyPhone || '+233 24 000 0000'} | Email: {settings?.companyEmail || 'finance@realestateghana.com'}
+                      {settings?.companyAddress || 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.'} | Tel: {settings?.companyPhone || '0541196364'} | Email: {settings?.companyEmail || 'potentialrealestate04@gmail.com'}
                     </p>
                   </div>
                   <div className="text-left sm:text-right">
@@ -1287,7 +1287,7 @@ export default function FinancialsPage() {
 
                 {/* Corporate Stamp */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-500 gap-1.5">
-                  <span>Confidential Internal Financial Statement. Real Estate Development Ghana Ltd.</span>
+                  <span>Confidential Internal Financial Statement. Potential Investment Real Estate Ltd.</span>
                   <div className="border border-dashed border-slate-400 px-3 py-1 rounded text-slate-400 font-bold uppercase text-center self-start sm:self-auto">
                     Affix Official Stamp
                   </div>
@@ -1369,10 +1369,10 @@ export default function FinancialsPage() {
                 <div className="border-b-2 border-slate-900 pb-3 flex flex-col sm:flex-row justify-between items-start gap-2">
                   <div>
                     <h2 className="text-base font-black tracking-tight text-slate-950 uppercase">
-                      {settings?.companyName || 'REAL ESTATE DEVELOPMENT GHANA LTD'}
+                      {settings?.companyName || 'POTENTIAL INVESTMENT REAL ESTATE LTD.'}
                     </h2>
                     <p className="text-[10px] text-slate-500">
-                      {settings?.companyAddress || 'Accra, Greater Accra Region, Ghana'} | Tel: {settings?.companyPhone || '+233 24 000 0000'}
+                      {settings?.companyAddress || 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.'} | Tel: {settings?.companyPhone || '0541196364'}
                     </p>
                   </div>
                   <div className="text-left sm:text-right">
@@ -1588,10 +1588,10 @@ export default function FinancialsPage() {
                 <div className="border-b-2 border-slate-900 pb-3 flex flex-col sm:flex-row justify-between items-start gap-2">
                   <div>
                     <h2 className="text-base font-black tracking-tight text-slate-950 uppercase">
-                      {settings?.companyName || 'REAL ESTATE DEVELOPMENT GHANA LTD'}
+                      {settings?.companyName || 'POTENTIAL INVESTMENT REAL ESTATE LTD.'}
                     </h2>
                     <p className="text-[10px] text-slate-500">
-                      {settings?.companyAddress || 'Accra, Greater Accra Region, Ghana'} | Tel: {settings?.companyPhone || '+233 24 000 0000'}
+                      {settings?.companyAddress || 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.'} | Tel: {settings?.companyPhone || '0541196364'}
                     </p>
                   </div>
                   <div className="text-left sm:text-right">
@@ -1684,7 +1684,7 @@ export default function FinancialsPage() {
 
                 {/* Stamp */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-500 gap-1.5">
-                  <span>Official Disbursement Voucher. Real Estate Development Ghana Ltd.</span>
+                  <span>Official Disbursement Voucher. Potential Investment Real Estate Ltd.</span>
                   <div className="border border-dashed border-slate-400 px-3 py-0.5 rounded text-slate-400 font-bold uppercase text-center self-start sm:self-auto">
                     Paid Stamp
                   </div>

@@ -26,7 +26,7 @@ export class EmailService {
   constructor(private readonly configService: ConfigService) {
     this.resendApiKey = this.configService.get<string>('RESEND_API_KEY') || null;
     this.defaultFrom =
-      this.configService.get<string>('EMAIL_FROM') || 'Ghana Real Estate <notifications@realestatedev.gh>';
+      this.configService.get<string>('EMAIL_FROM') || 'Potential Investment Real Estate Ltd. <potentialrealestate04@gmail.com>';
 
     const smtpHost = this.configService.get<string>('SMTP_HOST');
     if (smtpHost) {

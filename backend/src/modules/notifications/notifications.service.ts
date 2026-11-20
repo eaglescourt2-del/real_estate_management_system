@@ -81,9 +81,13 @@ export class NotificationsService implements OnModuleInit {
       where: { id: 'SYSTEM_CONFIG' },
     });
     return {
-      companyName: settings?.companyName || 'Ghana Real Estate Developers',
-      companyPhone: settings?.companyPhone || '+233 30 200 0000',
-      companyEmail: settings?.companyEmail || 'info@realestatedev.gh',
+      companyName: settings?.companyName || 'Potential Investment Real Estate Ltd.',
+      companyTagline: settings?.companyTagline || 'Your Trusted Partner in Land Sales',
+      companyPhone: settings?.companyPhone || '0541196364',
+      companyEmail: settings?.companyEmail || 'potentialrealestate04@gmail.com',
+      companyAddress: settings?.companyAddress || 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.',
+      emailFromAddress: settings?.emailFromAddress || 'potentialrealestate04@gmail.com',
+      whatsappPhone: settings?.whatsappPhoneNumberId || settings?.companyPhone || '0541196364',
       currency: settings?.currencySymbol || 'GH₵',
     };
   }
@@ -207,7 +211,11 @@ export class NotificationsService implements OnModuleInit {
     let sendResult: { success: boolean; externalMessageId?: string; failureReason?: string };
 
     if (dto.channel === NotificationChannel.WHATSAPP) {
-      sendResult = await this.whatsappService.sendMessage(destination, compiledContent);
+      let formattedWhatsApp = compiledContent;
+      if (!formattedWhatsApp.includes(branding.companyName)) {
+        formattedWhatsApp = `🏢 *${branding.companyName.toUpperCase()}*\n📍 _${branding.companyTagline}_\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedWhatsApp}\n\n━━━━━━━━━━━━━━━━━━━━\n📞 Tel: ${branding.companyPhone} | ✉️ ${branding.companyEmail}\n🏢 Office: ${branding.companyAddress}`;
+      }
+      sendResult = await this.whatsappService.sendMessage(destination, formattedWhatsApp);
     } else {
       const subject = `${branding.companyName} - ${dto.event.replace(/_/g, ' ')}`;
       const wrappedHtml = this.emailService.wrapInBrandedTemplate(
@@ -220,6 +228,7 @@ export class NotificationsService implements OnModuleInit {
         subject,
         htmlContent: wrappedHtml,
         fromName: branding.companyName,
+        fromEmail: branding.emailFromAddress,
       });
     }
 
@@ -274,6 +283,7 @@ export class NotificationsService implements OnModuleInit {
         subject,
         htmlContent: wrappedHtml,
         fromName: branding.companyName,
+        fromEmail: branding.emailFromAddress,
       });
     }
 
@@ -358,6 +368,7 @@ export class NotificationsService implements OnModuleInit {
             subject,
             htmlContent: wrappedHtml,
             fromName: branding.companyName,
+            fromEmail: branding.emailFromAddress,
           });
         }
 

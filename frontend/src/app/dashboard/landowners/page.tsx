@@ -411,7 +411,7 @@ export default function LandownersPage() {
     const locName = obl.locationName || payment.agreement?.landLocation?.name || 'Registered Site';
     const landowner = obl.landownerName || payment.agreement?.landowner?.fullName || 'Landowner';
 
-    const message = `*REAL ESTATE DEVELOPMENT GHANA LTD*
+    const message = `*POTENTIAL INVESTMENT REAL ESTATE LTD.*
 _Official Landowner Disbursement Voucher & Receipt_
 
 Dear *${landowner}*,
@@ -426,7 +426,7 @@ We have processed a land acquisition disbursement payment to you. Here are your 
 
 Your official payout voucher has been archived on our company financial ledger.
 Thank you for your ongoing partnership!
-📞 Tel: +233 (0) 244 000 001 | 📍 14 Kofi Annan Street, Airport Residential Area, Accra`;
+📞 Tel: 0541196364 | ✉️ potentialrealestate04@gmail.com | 📍 Ashaiman New Tulaku, Adjacent to New Tulaku Police Station`;
 
     window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
@@ -1494,13 +1494,13 @@ Thank you for your ongoing partnership!
               <div className="print-break-avoid border-b-2 border-slate-900 pb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-black uppercase tracking-wider text-slate-950 leading-tight">
-                    REAL ESTATE DEVELOPMENT GHANA LTD
+                    POTENTIAL INVESTMENT REAL ESTATE LTD.
                   </h2>
                   <p className="text-xs text-slate-700 font-semibold leading-tight mt-0.5">
-                    Corporate Head Office: 14 Kofi Annan Street, Airport Residential Area, Accra
+                    Corporate Head Office: Ashaiman New Tulaku, Adjacent to New Tulaku Police Station
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Tel: +233 (0) 244 000 001 | Email: accounts@realestatedev.gh | Web: www.realestatedev.gh
+                    Tel: 0541196364 | Email: potentialrealestate04@gmail.com
                   </p>
                 </div>
                 <div className="text-right">
@@ -1802,13 +1802,13 @@ Thank you for your ongoing partnership!
               <div className="print-break-avoid border-b-2 border-slate-900 pb-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-black uppercase tracking-wider text-slate-950 leading-tight">
-                    REAL ESTATE DEVELOPMENT GHANA LTD
+                    POTENTIAL INVESTMENT REAL ESTATE LTD.
                   </h2>
                   <p className="text-xs text-slate-700 font-semibold leading-tight mt-0.5">
-                    Corporate Head Office: 14 Kofi Annan Street, Airport Residential Area, Accra
+                    Corporate Head Office: Ashaiman New Tulaku, Adjacent to New Tulaku Police Station
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Tel: +233 (0) 244 000 001 | Email: accounts@realestatedev.gh | Web: www.realestatedev.gh
+                    Tel: 0541196364 | Email: potentialrealestate04@gmail.com
                   </p>
                 </div>
                 <div className="text-right">

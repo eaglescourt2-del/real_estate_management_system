@@ -789,12 +789,12 @@ model AuditLog {
 
 model SystemSetting {
   id                    String              @id @default("SYSTEM_CONFIG")
-  companyName           String              @default("Real Estate Management System")
-  companyTagline        String?             @default("Ghanaian Property & Land Development")
-  companyEmail          String              @default("info@realestatedev.gh")
-  companyPhone          String              @default("+233 30 000 0000")
-  companyAddress        String              @default("Accra, Ghana")
-  companyLogoUrl        String?
+  companyName           String              @default("Potential Investment Real Estate Ltd.")
+  companyTagline        String?             @default("Your Trusted Partner in Land Sales")
+  companyEmail          String              @default("potentialrealestate04@gmail.com")
+  companyPhone          String              @default("0541196364")
+  companyAddress        String              @default("Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.")
+  companyLogoUrl        String?             @default("/uploads/logo.png")
   taxIdentificationNumber String?
   defaultCurrency       String              @default("GHS")
   currencySymbol        String              @default("GH₵")
@@ -807,10 +807,10 @@ model SystemSetting {
   
   // Communication Service Credentials
   whatsappBusinessAccountId String?
-  whatsappPhoneNumberId String?
+  whatsappPhoneNumberId String?             @default("0541196364")
   whatsappAccessToken   String?
   resendApiKey          String?
-  emailFromAddress      String              @default("receipts@realestatedev.gh")
+  emailFromAddress      String              @default("potentialrealestate04@gmail.com")
   
   updatedAt             DateTime            @updatedAt
 }

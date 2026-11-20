@@ -24,7 +24,7 @@ export class WhatsAppService {
 
   constructor(private readonly configService: ConfigService) {
     this.apiToken = this.configService.get<string>('WHATSAPP_API_TOKEN') || null;
-    this.phoneNumberId = this.configService.get<string>('WHATSAPP_PHONE_NUMBER_ID') || null;
+    this.phoneNumberId = this.configService.get<string>('WHATSAPP_PHONE_NUMBER_ID') || '0541196364';
     this.verifyToken = this.configService.get<string>('WHATSAPP_WEBHOOK_VERIFY_TOKEN') || 'ghana_real_estate_webhook_token_2026';
   }
 

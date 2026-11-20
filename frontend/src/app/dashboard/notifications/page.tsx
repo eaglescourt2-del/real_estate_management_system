@@ -61,7 +61,7 @@ export default function NotificationsPage() {
   // Document Ready Form State
   const [docCustomerId, setDocCustomerId] = useState('');
   const [docType, setDocType] = useState('Official Indenture & Cadastral Site Plan');
-  const [docCollectionOffice, setDocCollectionOffice] = useState('Head Office Conveyancing & Client Relations Desk');
+  const [docCollectionOffice, setDocCollectionOffice] = useState('Head Office - Ashaiman New Tulaku, Adjacent to New Tulaku Police Station');
   const [docOfficeHours, setDocOfficeHours] = useState('Monday – Friday, 8:30 AM – 5:00 PM');
   const [isSendingDocNotice, setIsSendingDocNotice] = useState(false);
   const [docNoticeSuccessMsg, setDocNoticeSuccessMsg] = useState<string | null>(null);
@@ -303,6 +303,48 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      {/* SENDER IDENTITY & CHANNEL DISPATCH STATUS */}
+      <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+            PI
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-sm font-bold text-slate-900">Potential Investment Real Estate Ltd.</h2>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                Verified Sender Identity
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Automated notifications are dispatched under the official company name, phone, and email channels.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          {/* WhatsApp Channel */}
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-slate-500">WhatsApp Sender:</span>
+            <span className="font-semibold text-emerald-800">0541196364</span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
+              Company Name Header
+            </span>
+          </div>
+
+          {/* Email Channel */}
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-xl border border-blue-200 shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+            <span className="text-slate-500">Email Sender:</span>
+            <span className="font-semibold text-blue-800">potentialrealestate04@gmail.com</span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 font-medium border border-blue-200">
+              Branded HTML
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* THREE EXECUTIVE ACTION CARDS (Monthly Reminders, Promos, Document Ready) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* CARD 1: Monthly Reminders */}
@@ -411,7 +453,9 @@ export default function NotificationsPage() {
             <div className="mt-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Collection Desk:</span>
-                <strong className="text-slate-800 truncate max-w-[150px]">Airport Residential</strong>
+                <strong className="text-slate-800 truncate max-w-[170px]" title="Ashaiman New Tulaku, Adjacent to New Tulaku Police Station">
+                  Ashaiman New Tulaku
+                </strong>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">Verification:</span>
