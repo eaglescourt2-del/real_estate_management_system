@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -13,7 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { NotificationChannel, NotificationStatus, UserRole } from '@prisma/client';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -116,6 +117,54 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Manually retry a failed notification transmission' })
   async retryNotification(@Param('id') id: string) {
     return this.notificationsService.retryNotification(id);
+  }
+
+  @Put(':id/mark-delivered')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMINISTRATOR,
+    UserRole.MANAGING_DIRECTOR,
+    UserRole.ADMINISTRATOR,
+    UserRole.SALES_AGENT,
+  )
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Manually mark notification status as DELIVERED' })
+  async markDelivered(@Param('id') id: string) {
+    return this.notificationsService.markDelivered(id);
+  }
+
+  @Delete('clear')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMINISTRATOR,
+    UserRole.MANAGING_DIRECTOR,
+    UserRole.ADMINISTRATOR,
+  )
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Clear notification message list' })
+  async clearNotifications(
+    @Query('channel') channel?: NotificationChannel,
+    @Query('status') status?: NotificationStatus,
+    @Body() body?: { ids?: string[] },
+  ) {
+    return this.notificationsService.clearNotifications({
+      channel,
+      status,
+      ids: body?.ids,
+    });
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMINISTRATOR,
+    UserRole.MANAGING_DIRECTOR,
+    UserRole.ADMINISTRATOR,
+  )
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a single notification message log' })
+  async deleteNotification(@Param('id') id: string) {
+    return this.notificationsService.deleteNotification(id);
   }
 
   @Get('reminders-preview')

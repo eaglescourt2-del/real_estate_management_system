@@ -14,6 +14,7 @@ export interface EmailSendOptions {
   htmlContent: string;
   fromName?: string;
   fromEmail?: string;
+  apiKey?: string | null;
 }
 
 @Injectable()
@@ -35,19 +36,20 @@ export class EmailService {
       const smtpPass = this.configService.get<string>('SMTP_PASS');
       const smtpSecure = this.configService.get<string>('SMTP_SECURE') === 'true';
 
-      this.smtpTransporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpSecure,
-        auth:
-          smtpUser && smtpPass
-            ? {
-                user: smtpUser,
-                pass: smtpPass,
-              }
-            : undefined,
-      });
-      this.logger.log(`Configured SMTP transporter for host: ${smtpHost}:${smtpPort}`);
+      if (smtpUser && smtpPass && smtpPass.trim().length > 0) {
+        this.smtpTransporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpSecure,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass.trim(),
+          },
+        });
+        this.logger.log(`Configured live SMTP transporter for host: ${smtpHost}:${smtpPort} as ${smtpUser}`);
+      } else {
+        this.logger.warn(`SMTP_PASS not provided. Direct email delivery will use 1-Click "Send via Email App" or mock driver until SMTP_PASS is configured.`);
+      }
     }
   }
 
@@ -96,16 +98,18 @@ export class EmailService {
    */
   async sendEmail(options: EmailSendOptions): Promise<EmailSendResult> {
     const from = options.fromEmail
-      ? `${options.fromName || 'Real Estate Management'} <${options.fromEmail}>`
+      ? `${options.fromName || 'Potential Investment Real Estate Ltd.'} <${options.fromEmail}>`
       : this.defaultFrom;
 
+    const resendKey = options.apiKey || this.resendApiKey;
+
     // 1. If Resend API Key is set, send via Resend REST API
-    if (this.resendApiKey) {
+    if (resendKey) {
       try {
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${this.resendApiKey}`,
+            Authorization: `Bearer ${resendKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -166,14 +170,15 @@ export class EmailService {
       }
     }
 
-    // 3. Mock fallback for local development / testing
+    // 3. Fallback when neither is configured
     const mockId = `msg_mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    this.logger.log(
-      `[MOCK EMAIL] Sent email to: ${options.to} | Subject: "${options.subject}" | Mock Message ID: ${mockId}`,
+    this.logger.warn(
+      `[SIMULATION MODE] No live SMTP transporter or Resend API key configured. Email to ${options.to} simulated. [Assigned Mock ID: ${mockId}]`,
     );
 
     return {
-      success: true,
+      success: false,
+      failureReason: 'Email gateway not configured (Set SMTP_PASS / App Password or RESEND_API_KEY). Use the blue "Send via Email App" button to dispatch directly.',
       externalMessageId: mockId,
     };
   }

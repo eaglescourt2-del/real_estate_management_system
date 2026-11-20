@@ -52,27 +52,34 @@ export class WhatsAppService {
   /**
    * Dispatches WhatsApp message via Meta Cloud API or mock driver in test/dev
    */
-  async sendMessage(to: string, messageBody: string): Promise<WhatsAppSendResult> {
+  async sendMessage(
+    to: string,
+    messageBody: string,
+    dynamicConfig?: { apiToken?: string | null; phoneNumberId?: string | null },
+  ): Promise<WhatsAppSendResult> {
     const formattedRecipient = this.formatToWhatsAppPhone(to);
+    const token = dynamicConfig?.apiToken || this.apiToken;
+    const phoneId = dynamicConfig?.phoneNumberId || this.phoneNumberId;
 
     // If Cloud API credentials are not configured, simulate delivery in development/mock mode
-    if (!this.apiToken || !this.phoneNumberId) {
+    if (!token) {
       const mockId = `wamid.MOCK_${Date.now()}_${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-      this.logger.log(
-        `[MOCK WHATSAPP] Dispatched message to +${formattedRecipient}:\n${messageBody}\n[Assigned Mock ID: ${mockId}]`,
+      this.logger.warn(
+        `[SIMULATION MODE] WhatsApp Cloud API token not set. Message to +${formattedRecipient} simulated. [Assigned Mock ID: ${mockId}]`,
       );
       return {
-        success: true,
+        success: false,
+        failureReason: 'WhatsApp Cloud API token not configured. Use the green "Send via WhatsApp Web" button to deliver directly to the customer.',
         externalMessageId: mockId,
       };
     }
 
     try {
-      const endpoint = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/messages`;
+      const endpoint = `https://graph.facebook.com/v21.0/${phoneId}/messages`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.apiToken}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

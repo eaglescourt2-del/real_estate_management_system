@@ -28,6 +28,9 @@ import {
   Loader2,
   DollarSign,
   Layers,
+  Trash2,
+  ExternalLink,
+  Check,
 } from 'lucide-react';
 
 export default function NotificationsPage() {
@@ -65,6 +68,13 @@ export default function NotificationsPage() {
   const [docOfficeHours, setDocOfficeHours] = useState('Monday – Friday, 8:30 AM – 5:00 PM');
   const [isSendingDocNotice, setIsSendingDocNotice] = useState(false);
   const [docNoticeSuccessMsg, setDocNoticeSuccessMsg] = useState<string | null>(null);
+
+  // Clear Messages & Live Dispatch State
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearScope, setClearScope] = useState<'ALL' | 'FILTERED'>('ALL');
+  const [clearSuccessMsg, setClearSuccessMsg] = useState<string | null>(null);
+  const [activeDispatchMsg, setActiveDispatchMsg] = useState<string | null>(null);
 
   // 1. Fetch Notification Logs
   const { data: logsData, isLoading: isLogsLoading } = useQuery({
@@ -242,18 +252,109 @@ export default function NotificationsPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  // Clear Messages Handler
+  const handleClearMessages = async () => {
+    setIsClearing(true);
+    setClearSuccessMsg(null);
+    try {
+      const params: any = {};
+      if (clearScope === 'FILTERED') {
+        if (channelFilter !== 'ALL') params.channel = channelFilter;
+        if (statusFilter !== 'ALL') params.status = statusFilter;
+      }
+      const res = await apiRequest('/notifications/clear', {
+        method: 'DELETE',
+        params,
+      });
+      setClearSuccessMsg(res?.message || 'Messages cleared successfully.');
+      queryClient.invalidateQueries({ queryKey: ['notifications-logs'] });
+      setTimeout(() => {
+        setIsClearModalOpen(false);
+        setClearSuccessMsg(null);
+      }, 1200);
+    } catch (err: any) {
+      alert(`Failed to clear messages: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  // Delete Individual Message Handler
+  const handleDeleteLog = async (id: string) => {
+    if (!confirm('Are you sure you want to remove this message from the audit list?')) return;
+    try {
+      await apiRequest(`/notifications/${id}`, { method: 'DELETE' });
+      queryClient.invalidateQueries({ queryKey: ['notifications-logs'] });
+    } catch (err: any) {
+      alert(`Failed to delete message: ${err?.message || 'Unknown error'}`);
+    }
+  };
+
+  // 1-Click WhatsApp Direct Dispatch (Opens real WhatsApp Web / App)
+  const handleSendWhatsAppWeb = async (log: any) => {
+    const cleanPhone = log.recipientDestination.replace(/[^\d]/g, '');
+    let intlPhone = cleanPhone;
+    if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+      intlPhone = `233${cleanPhone.substring(1)}`;
+    } else if (cleanPhone.startsWith('+')) {
+      intlPhone = cleanPhone.substring(1);
+    }
+    const url = `https://wa.me/${intlPhone}?text=${encodeURIComponent(log.messageContent)}`;
+    window.open(url, '_blank');
+
+    try {
+      await apiRequest(`/notifications/${log.id}/mark-delivered`, { method: 'PUT' });
+      queryClient.invalidateQueries({ queryKey: ['notifications-logs'] });
+      setActiveDispatchMsg(`Opened WhatsApp for ${log.customer?.firstName || 'customer'} and marked status as DELIVERED.`);
+      setTimeout(() => setActiveDispatchMsg(null), 4000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 1-Click Email App Direct Dispatch (Opens Gmail or default email client)
+  const handleSendEmailClient = async (log: any) => {
+    const cleanBody = log.messageContent.replace(/<[^>]*>/g, '').trim();
+    const subject = encodeURIComponent(`${log.event.replace(/_/g, ' ')} - Potential Investment Real Estate Ltd.`);
+    const body = encodeURIComponent(cleanBody);
+    window.open(`mailto:${log.recipientDestination}?subject=${subject}&body=${body}`, '_blank');
+
+    try {
+      await apiRequest(`/notifications/${log.id}/mark-delivered`, { method: 'PUT' });
+      queryClient.invalidateQueries({ queryKey: ['notifications-logs'] });
+      setActiveDispatchMsg(`Opened email client for ${log.customer?.firstName || 'customer'} and marked status as DELIVERED.`);
+      setTimeout(() => setActiveDispatchMsg(null), 4000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getStatusBadge = (status: string, log?: any) => {
+    // If it was a local simulation (mock id)
+    const isMock = log?.externalMessageId?.startsWith('wamid.MOCK') || log?.externalMessageId?.startsWith('msg_mock');
+
+    if (isMock) {
+      return (
+        <span
+          className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300"
+          title="Simulated locally (Gateway unconfigured). Click 'Send WhatsApp' or 'Send Email' to deliver live to customer!"
+        >
+          SIMULATED
+        </span>
+      );
+    }
+
     switch (status) {
       case 'DELIVERED':
       case 'READ':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            {status}
+            DELIVERED
           </span>
         );
       case 'SENT':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
             SENT
           </span>
         );
@@ -265,8 +366,11 @@ export default function NotificationsPage() {
         );
       case 'FAILED':
         return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-            FAILED
+          <span
+            className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200"
+            title={log?.failureReason || 'Not delivered. Use 1-Click Send button to deliver directly.'}
+          >
+            NOT DELIVERED
           </span>
         );
       default:
@@ -329,7 +433,7 @@ export default function NotificationsPage() {
             <span className="text-slate-500">WhatsApp Sender:</span>
             <span className="font-semibold text-emerald-800">0541196364</span>
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
-              Company Name Header
+              Direct & API Active
             </span>
           </div>
 
@@ -344,6 +448,18 @@ export default function NotificationsPage() {
           </div>
         </div>
       </div>
+
+      {activeDispatchMsg && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{activeDispatchMsg}</span>
+          </div>
+          <button onClick={() => setActiveDispatchMsg(null)} className="text-emerald-700 hover:text-emerald-900 cursor-pointer">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* THREE EXECUTIVE ACTION CARDS (Monthly Reminders, Promos, Document Ready) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -480,41 +596,55 @@ export default function NotificationsPage() {
       {/* FILTER & AUDIT LOGS SECTION */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-xs">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-slate-400" />
-            <span className="text-slate-500 font-medium">Channel:</span>
-            {['ALL', 'WHATSAPP', 'EMAIL'].map((ch) => (
-              <button
-                key={ch}
-                type="button"
-                onClick={() => setChannelFilter(ch)}
-                className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
-                  channelFilter === ch
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {ch}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center space-x-2">
+              <Filter className="h-4 w-4 text-slate-400" />
+              <span className="text-slate-500 font-medium">Channel:</span>
+              {['ALL', 'WHATSAPP', 'EMAIL'].map((ch) => (
+                <button
+                  key={ch}
+                  type="button"
+                  onClick={() => setChannelFilter(ch)}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                    channelFilter === ch
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {ch}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-slate-500 font-medium">Status:</span>
+              {['ALL', 'DELIVERED', 'SENT', 'QUEUED', 'FAILED'].map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setStatusFilter(st)}
+                  className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
+                    statusFilter === st
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* Clear Messages Toolbar Action */}
           <div className="flex items-center space-x-2">
-            <span className="text-slate-500 font-medium">Status:</span>
-            {['ALL', 'DELIVERED', 'SENT', 'QUEUED', 'FAILED'].map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 rounded-md font-semibold transition cursor-pointer ${
-                  statusFilter === st
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {st}
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={() => setIsClearModalOpen(true)}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 shadow-xs transition cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+              <span>Clear Messages</span>
+            </button>
           </div>
         </div>
 
@@ -542,7 +672,7 @@ export default function NotificationsPage() {
                     <th className="py-3 px-4">Channel & Destination</th>
                     <th className="py-3 px-4">Message Snippet</th>
                     <th className="py-3 px-4 text-center">Delivery Status</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
+                    <th className="py-3 px-4 text-center">Live Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -579,23 +709,55 @@ export default function NotificationsPage() {
                         {log.messageContent}
                       </td>
 
-                      <td className="py-3 px-4 text-center">{getStatusBadge(log.status)}</td>
+                      <td className="py-3 px-4 text-center">{getStatusBadge(log.status, log)}</td>
 
                       <td className="py-3 px-4 text-center">
-                        {log.status === 'FAILED' ? (
+                        <div className="flex items-center justify-center space-x-1.5">
+                          {log.channel === 'WHATSAPP' && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendWhatsAppWeb(log)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[10px] shadow-xs transition cursor-pointer"
+                              title="Open in WhatsApp Web / App to deliver directly to customer"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              <span>Send WhatsApp</span>
+                            </button>
+                          )}
+
+                          {log.channel === 'EMAIL' && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendEmailClient(log)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-500 text-white font-semibold text-[10px] shadow-xs transition cursor-pointer"
+                              title="Open in Email Client to deliver directly to customer"
+                            >
+                              <Mail className="h-3 w-3" />
+                              <span>Send Email</span>
+                            </button>
+                          )}
+
+                          {log.status === 'FAILED' && (
+                            <button
+                              type="button"
+                              onClick={() => handleRetry(log.id)}
+                              className="inline-flex items-center space-x-1 px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[10px] border border-slate-300 transition cursor-pointer"
+                              title="Retry background delivery"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              <span>Retry</span>
+                            </button>
+                          )}
+
                           <button
                             type="button"
-                            onClick={() => handleRetry(log.id)}
-                            className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[10px] cursor-pointer"
+                            onClick={() => handleDeleteLog(log.id)}
+                            className="p-1.5 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                            title="Delete message log"
                           >
-                            <RefreshCw className="h-3 w-3" />
-                            <span>Retry</span>
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 font-mono">
-                            {log.externalMessageId?.substring(0, 15) || 'OK'}...
-                          </span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1006,6 +1168,109 @@ export default function NotificationsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. MODAL: CLEAR NOTIFICATION MESSAGE LIST */}
+      {/* ========================================================================= */}
+      {isClearModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2 text-rose-600">
+                <Trash2 className="h-5 w-5" />
+                <h3 className="text-base font-bold text-slate-900">Clear Notification Message List</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsClearModalOpen(false)}
+                className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Select which notifications you would like to permanently remove from the audit list:
+            </p>
+
+            <div className="space-y-2">
+              <label
+                onClick={() => setClearScope('ALL')}
+                className={`flex items-start space-x-3 p-3 rounded-xl border cursor-pointer transition ${
+                  clearScope === 'ALL'
+                    ? 'border-rose-400 bg-rose-50/50'
+                    : 'border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="clearScope"
+                  checked={clearScope === 'ALL'}
+                  onChange={() => setClearScope('ALL')}
+                  className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                />
+                <div>
+                  <span className="block text-xs font-bold text-slate-900">Clear Entire Message History</span>
+                  <span className="block text-[11px] text-slate-500">
+                    Removes all notification logs currently recorded in the system.
+                  </span>
+                </div>
+              </label>
+
+              {(channelFilter !== 'ALL' || statusFilter !== 'ALL') && (
+                <label
+                  onClick={() => setClearScope('FILTERED')}
+                  className={`flex items-start space-x-3 p-3 rounded-xl border cursor-pointer transition ${
+                    clearScope === 'FILTERED'
+                      ? 'border-rose-400 bg-rose-50/50'
+                      : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="clearScope"
+                    checked={clearScope === 'FILTERED'}
+                    onChange={() => setClearScope('FILTERED')}
+                    className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                  />
+                  <div>
+                    <span className="block text-xs font-bold text-slate-900">Clear Current Filtered View Only</span>
+                    <span className="block text-[11px] text-slate-500">
+                      Removes only messages matching Channel: <strong>{channelFilter}</strong>, Status: <strong>{statusFilter}</strong>.
+                    </span>
+                  </div>
+                </label>
+              )}
+            </div>
+
+            {clearSuccessMsg && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center space-x-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span>{clearSuccessMsg}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsClearModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearMessages}
+                disabled={isClearing}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow transition cursor-pointer disabled:opacity-50 flex items-center space-x-1.5"
+              >
+                {isClearing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                <span>{isClearing ? 'Clearing...' : 'Confirm & Clear Messages'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

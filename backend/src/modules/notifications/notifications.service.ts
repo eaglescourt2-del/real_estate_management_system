@@ -89,6 +89,9 @@ export class NotificationsService implements OnModuleInit {
       emailFromAddress: settings?.emailFromAddress || 'potentialrealestate04@gmail.com',
       whatsappPhone: settings?.whatsappPhoneNumberId || settings?.companyPhone || '0541196364',
       currency: settings?.currencySymbol || 'GH₵',
+      whatsappAccessToken: settings?.whatsappAccessToken || null,
+      whatsappPhoneNumberId: settings?.whatsappPhoneNumberId || null,
+      resendApiKey: settings?.resendApiKey || null,
     };
   }
 
@@ -215,7 +218,10 @@ export class NotificationsService implements OnModuleInit {
       if (!formattedWhatsApp.includes(branding.companyName)) {
         formattedWhatsApp = `🏢 *${branding.companyName.toUpperCase()}*\n📍 _${branding.companyTagline}_\n━━━━━━━━━━━━━━━━━━━━\n\n${formattedWhatsApp}\n\n━━━━━━━━━━━━━━━━━━━━\n📞 Tel: ${branding.companyPhone} | ✉️ ${branding.companyEmail}\n🏢 Office: ${branding.companyAddress}`;
       }
-      sendResult = await this.whatsappService.sendMessage(destination, formattedWhatsApp);
+      sendResult = await this.whatsappService.sendMessage(destination, formattedWhatsApp, {
+        apiToken: branding.whatsappAccessToken,
+        phoneNumberId: branding.whatsappPhoneNumberId,
+      });
     } else {
       const subject = `${branding.companyName} - ${dto.event.replace(/_/g, ' ')}`;
       const wrappedHtml = this.emailService.wrapInBrandedTemplate(
@@ -229,6 +235,7 @@ export class NotificationsService implements OnModuleInit {
         htmlContent: wrappedHtml,
         fromName: branding.companyName,
         fromEmail: branding.emailFromAddress,
+        apiKey: branding.resendApiKey,
       });
     }
 
@@ -264,14 +271,18 @@ export class NotificationsService implements OnModuleInit {
     }
 
     let sendResult: { success: boolean; externalMessageId?: string; failureReason?: string };
+    const branding = await this.getSystemSettings();
 
     if (log.channel === NotificationChannel.WHATSAPP) {
       sendResult = await this.whatsappService.sendMessage(
         log.recipientDestination,
         log.messageContent,
+        {
+          apiToken: branding.whatsappAccessToken,
+          phoneNumberId: branding.whatsappPhoneNumberId,
+        },
       );
     } else {
-      const branding = await this.getSystemSettings();
       const subject = `${branding.companyName} - Notice Retry (${log.event.replace(/_/g, ' ')})`;
       const wrappedHtml = this.emailService.wrapInBrandedTemplate(
         subject,
@@ -284,6 +295,7 @@ export class NotificationsService implements OnModuleInit {
         htmlContent: wrappedHtml,
         fromName: branding.companyName,
         fromEmail: branding.emailFromAddress,
+        apiKey: branding.resendApiKey,
       });
     }
 
@@ -355,6 +367,10 @@ export class NotificationsService implements OnModuleInit {
           sendResult = await this.whatsappService.sendMessage(
             log.recipientDestination,
             log.messageContent,
+            {
+              apiToken: branding.whatsappAccessToken,
+              phoneNumberId: branding.whatsappPhoneNumberId,
+            },
           );
         } else {
           const subject = `${branding.companyName} - Notice (${log.event.replace(/_/g, ' ')})`;
@@ -369,6 +385,7 @@ export class NotificationsService implements OnModuleInit {
             htmlContent: wrappedHtml,
             fromName: branding.companyName,
             fromEmail: branding.emailFromAddress,
+            apiKey: branding.resendApiKey,
           });
         }
 
@@ -978,6 +995,74 @@ export class NotificationsService implements OnModuleInit {
     return {
       success: true,
       message: `Document collection notice sent to ${customer.firstName} ${customer.lastName}`,
+    };
+  }
+
+  /**
+   * Clear notification logs (all, or filtered by channel/status/ids)
+   */
+  async clearNotifications(filter?: {
+    channel?: NotificationChannel;
+    status?: NotificationStatus;
+    ids?: string[];
+  }) {
+    const where: any = {};
+    if (filter?.ids && filter.ids.length > 0) {
+      where.id = { in: filter.ids };
+    } else {
+      if (filter?.channel) where.channel = filter.channel;
+      if (filter?.status) where.status = filter.status;
+    }
+
+    const count = await this.prisma.notificationLog.count({ where });
+    await this.prisma.notificationLog.deleteMany({ where });
+
+    this.logger.log(`Cleared ${count} notification logs.`);
+    return {
+      success: true,
+      deletedCount: count,
+      message: `Successfully cleared ${count} notification message(s).`,
+    };
+  }
+
+  /**
+   * Delete an individual notification log
+   */
+  async deleteNotification(id: string) {
+    const existing = await this.prisma.notificationLog.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Notification log with ID ${id} not found`);
+    }
+
+    await this.prisma.notificationLog.delete({ where: { id } });
+    return {
+      success: true,
+      message: 'Notification message deleted successfully.',
+    };
+  }
+
+  /**
+   * Mark a notification as DELIVERED manually (e.g. after sending via WhatsApp Web or client email)
+   */
+  async markDelivered(id: string) {
+    const existing = await this.prisma.notificationLog.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Notification log with ID ${id} not found`);
+    }
+
+    const updated = await this.prisma.notificationLog.update({
+      where: { id },
+      data: {
+        status: NotificationStatus.DELIVERED,
+        deliveredAt: new Date(),
+        failureReason: null,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Notification status updated to DELIVERED.',
+      notification: updated,
     };
   }
 }
