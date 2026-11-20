@@ -269,10 +269,40 @@ export default function FinancialsPage() {
     setFormError(null);
   };
 
-  const downloadReport = (format: 'excel' | 'pdf') => {
-    const token = localStorage.getItem('access_token');
-    const url = `/api/financials/export/${format}?period=${reportPeriod}`;
-    window.open(url, '_blank');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const downloadReport = async (format: 'excel' | 'pdf') => {
+    try {
+      setIsExporting(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+
+      // Request server generation with authorization header
+      const res = await apiRequest<{ fileUrl?: string; pdfUrl?: string }>(
+        `/financials/export/${format}?period=${reportPeriod}&format=json`
+      );
+
+      const fileUrl = res?.fileUrl || res?.pdfUrl;
+      if (fileUrl) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.setAttribute('download', fileUrl.split('/').pop() || `Financial_Report.${format === 'excel' ? 'xlsx' : 'pdf'}`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // Direct stream download fallback
+      const url = `/api/financials/export/${format}?period=${reportPeriod}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+      window.location.href = url;
+    } catch (err: any) {
+      console.error('Export error, attempting direct stream download:', err);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      const url = `/api/financials/export/${format}?period=${reportPeriod}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+      window.location.href = url;
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const getChannelBadge = (ch: string) => {
@@ -338,11 +368,17 @@ export default function FinancialsPage() {
           </button>
           <button
             type="button"
+            disabled={isExporting}
             onClick={() => downloadReport('excel')}
-            className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2.5 sm:py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold shadow transition cursor-pointer min-h-[40px]"
+            className="inline-flex items-center justify-center space-x-1.5 px-3.5 py-2.5 sm:py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 text-white text-xs font-semibold shadow transition cursor-pointer min-h-[40px]"
+            title="Export complete financial Excel spreadsheet (.xlsx)"
           >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span>Export Excel</span>
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4" />
+            )}
+            <span>{isExporting ? 'Generating...' : 'Export Excel'}</span>
           </button>
           <button
             type="button"

@@ -6,8 +6,11 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
+import * as path from 'path';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FinancialsService } from './financials.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -83,8 +86,15 @@ export class FinancialsController {
   @ApiOperation({
     summary: 'Export complete multi-tab financial report workbook (.xlsx)',
   })
-  async exportExcel(@Query() query: FinancialReportQueryDto) {
-    return this.financialsService.exportExcel(query);
+  async exportExcel(
+    @Query() query: FinancialReportQueryDto,
+    @Res() res: Response,
+  ) {
+    const result = await this.financialsService.exportExcel(query);
+    if (query.format === 'json') {
+      return res.json(result);
+    }
+    return res.download(result.filePath, path.basename(result.filePath));
   }
 
   @Get('export/pdf')
@@ -95,8 +105,13 @@ export class FinancialsController {
   async exportPdf(
     @Query() query: FinancialReportQueryDto,
     @CurrentUser('id') staffUserId: string,
+    @Res() res: Response,
   ) {
-    return this.financialsService.exportPdf(query, staffUserId);
+    const result = await this.financialsService.exportPdf(query, staffUserId);
+    if (query.format === 'json') {
+      return res.json(result);
+    }
+    return res.download(result.filePath, path.basename(result.filePath));
   }
 }
 

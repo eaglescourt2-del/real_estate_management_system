@@ -40,5 +40,15 @@ export class FinancialReportQueryDto {
   @IsOptional()
   @IsEnum(PaymentChannel)
   paymentChannel?: PaymentChannel;
+
+  @ApiPropertyOptional({ description: 'Authentication token for direct file downloads' })
+  @IsOptional()
+  @IsString()
+  token?: string;
+
+  @ApiPropertyOptional({ description: 'Response format: json or download stream' })
+  @IsOptional()
+  @IsString()
+  format?: string;
 }
 
