@@ -16,15 +16,18 @@ export class DashboardService {
 
   async getOverview() {
     // 1. Basic entity counts
+    // Physical plots are base plots (parentPlotId === null).
+    // Note: Half-plots (e.g. Plot 1A and Plot 1B) belong to parent Plot 1 and are not counted as extra standalone plots.
     const [totalCustomers, totalLocations, totalPlots] = await Promise.all([
       this.prisma.customer.count(),
       this.prisma.landLocation.count(),
-      this.prisma.plot.count(),
+      this.prisma.plot.count({ where: { parentPlotId: null } }),
     ]);
 
-    // 2. Plot Inventory Distribution
+    // 2. Plot Inventory Distribution across physical base plots
     const plotsByStatusRaw = await this.prisma.plot.groupBy({
       by: ['status'],
+      where: { parentPlotId: null },
       _count: { id: true },
     });
 
@@ -68,9 +71,18 @@ export class DashboardService {
     const totalLandownerOutstanding = Math.max(0, totalLandownerAgreed - totalLandownerPaid);
 
     // 5. Operational Expenses & Customer Refunds
+    // Exclude landowner payouts and refund disbursements from pure operational expenses
+    // to prevent double-deduction when computing netCashFlow.
     const [expensesAgg, refundsAgg] = await Promise.all([
       this.prisma.expense.aggregate({
-        where: { approvalStatus: ExpenseApprovalStatus.APPROVED },
+        where: {
+          approvalStatus: ExpenseApprovalStatus.APPROVED,
+          landownerPaymentId: null,
+          refundPaymentId: null,
+          categoryCode: {
+            notIn: ['LANDOWNER_PAYMENT', 'LAND_ACQUISITION', 'CUSTOMER_REFUND_DISBURSEMENT'],
+          },
+        },
         _sum: { amount: true },
       }),
       this.prisma.refundPayment.aggregate({
@@ -82,17 +94,18 @@ export class DashboardService {
     const totalCustomerRefundsDisbursed = Number(refundsAgg._sum.amount || 0);
 
     // 6. Net Profit / Cash Flow Position
-    // Net Position = Revenue Collected - Operational Expenses - Landowner Payouts - Refunds
+    // Net Position = Revenue Collected - Pure Operational Expenses - Landowner Payouts - Refunds
     const netCashFlow =
       totalRevenueCollected -
       totalOperationalExpenses -
       totalLandownerPaid -
       totalCustomerRefundsDisbursed;
 
-    // 7. Inventory Breakdown by Land Location
+    // 7. Inventory Breakdown by Land Location (Physical base plots: parentPlotId === null)
     const locationsWithPlots = await this.prisma.landLocation.findMany({
       include: {
         plots: {
+          where: { parentPlotId: null },
           select: {
             id: true,
             status: true,
@@ -117,7 +130,7 @@ export class DashboardService {
         id: loc.id,
         name: loc.name,
         region: loc.region,
-        totalPlots: locPlots.length,
+        totalPlots: loc.totalPlotsCount || locPlots.length,
         available,
         sold,
         reserved,

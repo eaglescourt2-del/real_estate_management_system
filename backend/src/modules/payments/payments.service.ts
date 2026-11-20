@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PdfGeneratorService } from './pdf-generator.service';
 import { SettingsService } from '../settings/settings.service';
 import { RecordPaymentDto } from './dto/record-payment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { ReversePaymentDto } from './dto/reverse-payment.dto';
 import { PaymentQueryDto } from './dto/payment-query.dto';
 import {
@@ -59,11 +60,6 @@ export class PaymentsService {
       throw new BadRequestException('Cannot record payments on a cancelled allocation.');
     }
 
-    // Role check: If staff is Sales Agent, verify customer is assigned to them
-    if (staffUser.role === UserRole.SALES_AGENT && allocation.salesAgentId !== staffUser.id) {
-      throw new ForbiddenException('You can only record payments for customers assigned to you.');
-    }
-
     const currentAgreed = Number(allocation.agreedPrice);
     const currentPaid = Number(allocation.totalAmountPaid);
     const paymentAmount = Number(dto.amount);
@@ -78,16 +74,28 @@ export class PaymentsService {
       newStatus = AllocationStatus.ACTIVE_INSTALMENT;
     }
 
-    // Generate serialized Transaction Reference: TXN-YYYYMMDD-XXXX
+    // Generate serialized unique Transaction Reference: TXN-YYYYMMDD-XXXX
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const countTxn = await this.prisma.customerPayment.count();
-    const transactionReference = `TXN-${dateStr}-${String(countTxn + 1).padStart(4, '0')}`;
+    let countTxn = (await this.prisma.customerPayment.count({
+      where: { transactionReference: { startsWith: `TXN-${dateStr}-` } },
+    })) + 1;
+    let transactionReference = `TXN-${dateStr}-${String(countTxn).padStart(4, '0')}`;
+    while (await this.prisma.customerPayment.findUnique({ where: { transactionReference } })) {
+      countTxn++;
+      transactionReference = `TXN-${dateStr}-${String(countTxn).padStart(4, '0')}`;
+    }
 
-    // Generate serialized Receipt Number: RCT-YYYYMM-XXXX
+    // Generate serialized unique Receipt Number: RCT-YYYYMM-XXXX
     const monthStr = today.toISOString().slice(0, 7).replace('-', '');
-    const countRct = await this.prisma.receipt.count();
-    const receiptNumber = `RCT-${monthStr}-${String(countRct + 1).padStart(4, '0')}`;
+    let countRct = (await this.prisma.receipt.count({
+      where: { receiptNumber: { startsWith: `RCT-${monthStr}-` } },
+    })) + 1;
+    let receiptNumber = `RCT-${monthStr}-${String(countRct).padStart(4, '0')}`;
+    while (await this.prisma.receipt.findUnique({ where: { receiptNumber } })) {
+      countRct++;
+      receiptNumber = `RCT-${monthStr}-${String(countRct).padStart(4, '0')}`;
+    }
 
     // Fetch corporate white-label branding
     const settings = await this.settingsService.getSettings(false);
@@ -189,8 +197,14 @@ export class PaymentsService {
       });
 
       // 4. Record linked corporate IncomeTransaction (prevents double counting)
-      const countInc = await tx.incomeTransaction.count();
-      const incRef = `INC-${dateStr}-${String(countInc + 1).padStart(4, '0')}`;
+      let countInc = (await tx.incomeTransaction.count({
+        where: { transactionRef: { startsWith: `INC-${dateStr}-` } },
+      })) + 1;
+      let incRef = `INC-${dateStr}-${String(countInc).padStart(4, '0')}`;
+      while (await tx.incomeTransaction.findUnique({ where: { transactionRef: incRef } })) {
+        countInc++;
+        incRef = `INC-${dateStr}-${String(countInc).padStart(4, '0')}`;
+      }
       await tx.incomeTransaction.create({
         data: {
           transactionRef: incRef,
@@ -260,13 +274,6 @@ export class PaymentsService {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-
-    // Role restrictions: Sales Agents can only view payments of their assigned customers
-    if (staffUser.role === UserRole.SALES_AGENT) {
-      where.allocation = {
-        salesAgentId: staffUser.id,
-      };
-    }
 
     if (query.customerId) where.customerId = query.customerId;
     if (query.allocationId) where.allocationId = query.allocationId;
@@ -344,6 +351,42 @@ export class PaymentsService {
     };
   }
 
+  async getActiveAllocations(staffUser: { id: string; role: UserRole }) {
+    const where: any = {
+      status: { in: [AllocationStatus.RESERVED, AllocationStatus.ACTIVE_INSTALMENT, AllocationStatus.PAID_IN_FULL] },
+    };
+
+    return this.prisma.plotAllocation.findMany({
+      where,
+      orderBy: { allocatedAt: 'desc' },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerNumber: true,
+            firstName: true,
+            lastName: true,
+            telephone: true,
+          },
+        },
+        plot: {
+          select: {
+            id: true,
+            plotNumber: true,
+            dimensions: true,
+            landLocation: {
+              select: {
+                id: true,
+                name: true,
+                region: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async findOne(id: string) {
     const payment = await this.prisma.customerPayment.findUnique({
       where: { id },
@@ -379,10 +422,6 @@ export class PaymentsService {
    * Only Super Administrator or Managing Director can reverse financial entries.
    */
   async reversePayment(id: string, dto: ReversePaymentDto, staffUser: { id: string; role: UserRole }) {
-    if (staffUser.role !== UserRole.SUPER_ADMINISTRATOR && staffUser.role !== UserRole.MANAGING_DIRECTOR) {
-      throw new ForbiddenException('Only a Super Administrator or Managing Director can authorize payment reversals.');
-    }
-
     const payment = await this.prisma.customerPayment.findUnique({
       where: { id },
       include: {
@@ -461,5 +500,121 @@ export class PaymentsService {
         newOutstandingBalance: newBalance,
       },
     };
+  }
+
+  async updatePayment(id: string, dto: UpdatePaymentDto, staffUser: { id: string; role: UserRole }) {
+    const payment = await this.prisma.customerPayment.findUnique({
+      where: { id },
+      include: {
+        allocation: true,
+        receipt: true,
+        incomeTransaction: true,
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment record with ID '${id}' not found.`);
+    }
+
+    if (payment.isReversed) {
+      throw new BadRequestException('Cannot edit a reversed payment record.');
+    }
+
+    const allocation = payment.allocation;
+    const oldAmount = Number(payment.amount);
+    const newAmount = dto.amount !== undefined ? Number(dto.amount) : oldAmount;
+    const diff = newAmount - oldAmount;
+
+    const currentTotalPaid = Number(allocation.totalAmountPaid);
+    const agreedPrice = Number(allocation.agreedPrice);
+    const updatedTotalPaid = currentTotalPaid + diff;
+    const updatedBalance = Math.max(0, agreedPrice - updatedTotalPaid);
+
+    let updatedStatus = allocation.status;
+    if (updatedBalance === 0) {
+      updatedStatus = AllocationStatus.PAID_IN_FULL;
+    } else if (allocation.status === AllocationStatus.PAID_IN_FULL && updatedBalance > 0) {
+      updatedStatus = AllocationStatus.ACTIVE_INSTALMENT;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Update CustomerPayment
+      const updatedPayment = await tx.customerPayment.update({
+        where: { id },
+        data: {
+          ...(dto.amount !== undefined && { amount: newAmount }),
+          ...(dto.paymentCategory && { paymentCategory: dto.paymentCategory }),
+          ...(dto.paymentChannel && { paymentChannel: dto.paymentChannel }),
+          ...(dto.bankName !== undefined && { bankName: dto.bankName?.trim() || null }),
+          ...(dto.bankBranch !== undefined && { bankBranch: dto.bankBranch?.trim() || null }),
+          ...(dto.chequeNumber !== undefined && { chequeNumber: dto.chequeNumber?.trim() || null }),
+          ...(dto.externalGatewayRef !== undefined && { externalGatewayRef: dto.externalGatewayRef?.trim() || null }),
+          ...(dto.paymentDate && { paymentDate: new Date(dto.paymentDate) }),
+        },
+      });
+
+      // 2. Adjust allocation if amount changed
+      if (diff !== 0) {
+        await tx.plotAllocation.update({
+          where: { id: allocation.id },
+          data: {
+            totalAmountPaid: updatedTotalPaid,
+            outstandingBalance: updatedBalance,
+            status: updatedStatus,
+            completedAt: updatedBalance === 0 ? new Date() : null,
+          },
+        });
+
+        // 3. Update Receipt
+        if (payment.receipt) {
+          await tx.receipt.update({
+            where: { id: payment.receipt.id },
+            data: {
+              amountReceived: newAmount,
+              outstandingBalanceAfter: updatedBalance,
+            },
+          });
+        }
+
+        // 4. Update IncomeTransaction
+        if (payment.incomeTransaction) {
+          await tx.incomeTransaction.update({
+            where: { id: payment.incomeTransaction.id },
+            data: {
+              amount: newAmount,
+            },
+          });
+        }
+      }
+
+      // 5. Audit Log
+      await tx.auditLog.create({
+        data: {
+          userId: staffUser.id,
+          action: AuditAction.UPDATE,
+          entityName: 'CustomerPayment',
+          entityId: payment.id,
+          newValues: {
+            transactionReference: payment.transactionReference,
+            oldAmount,
+            newAmount,
+            channel: dto.paymentChannel || payment.paymentChannel,
+            updatedTotalPaid,
+            updatedBalance,
+          },
+        },
+      });
+
+      return {
+        message: `Payment ${payment.transactionReference} updated successfully.`,
+        payment: updatedPayment,
+        adjustedAllocation: {
+          id: allocation.id,
+          totalAmountPaid: updatedTotalPaid,
+          outstandingBalance: updatedBalance,
+          status: updatedStatus,
+        },
+      };
+    });
   }
 }

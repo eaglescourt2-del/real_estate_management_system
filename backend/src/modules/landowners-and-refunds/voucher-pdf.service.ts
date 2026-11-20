@@ -73,12 +73,22 @@ export class VoucherPdfService {
 
         // Header Section
         doc.rect(40, 40, 515, 75).fill('#0f172a');
-        doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold')
-          .text(data.companyName.toUpperCase(), 55, 55);
-        doc.fontSize(9).font('Helvetica')
-          .text(data.companyTagline || 'Ghanaian Real Estate & Property Development', 55, 78);
+        const logoPath = path.join(process.cwd(), 'uploads', 'logo.png');
+        if (fs.existsSync(logoPath)) {
+          try {
+            doc.image(logoPath, 485, 47.5, { fit: [60, 60] });
+          } catch (e) {}
+        }
+        doc.fillColor('#ffffff').fontSize(15).font('Helvetica-Bold')
+          .text(data.companyName.toUpperCase(), 55, 52, { width: 420 });
+        doc.fontSize(8.5).font('Helvetica')
+          .text(data.companyTagline || 'Your Trusted Partner in Land Sales', 55, 73, { width: 420 });
         doc.fontSize(8)
-          .text(`Tel: ${data.companyPhone}  |  Email: ${data.companyEmail}`, 55, 93);
+          .text(`Tel: ${data.companyPhone}  |  Email: ${data.companyEmail}`, 55, 87, { width: 420 });
+        if (data.companyAddress) {
+          doc.fontSize(7.5).fillColor('#94a3b8')
+            .text(`Address: ${data.companyAddress}`, 55, 99, { width: 420 });
+        }
 
         // Voucher Title Banner
         doc.rect(40, 125, 515, 30).fill('#1e3a8a'); // Corporate Navy
@@ -199,12 +209,21 @@ export class VoucherPdfService {
 
         // Header Section
         doc.rect(40, 40, 515, 75).fill('#0f172a');
-        doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold')
-          .text(data.companyName.toUpperCase(), 55, 55);
-        doc.fontSize(9).font('Helvetica')
-          .text('Official Customer Refund Statement & Settlement Calculation', 55, 78);
+        if (fs.existsSync(logoPath)) {
+          try {
+            doc.image(logoPath, 485, 47.5, { fit: [60, 60] });
+          } catch (e) {}
+        }
+        doc.fillColor('#ffffff').fontSize(15).font('Helvetica-Bold')
+          .text(data.companyName.toUpperCase(), 55, 52, { width: 420 });
+        doc.fontSize(8.5).font('Helvetica')
+          .text('Official Customer Refund Statement & Settlement Calculation', 55, 73, { width: 420 });
         doc.fontSize(8)
-          .text(`Tel: ${data.companyPhone}  |  Email: ${data.companyEmail}`, 55, 93);
+          .text(`Tel: ${data.companyPhone}  |  Email: ${data.companyEmail}`, 55, 87, { width: 420 });
+        if (data.companyAddress) {
+          doc.fontSize(7.5).fillColor('#94a3b8')
+            .text(`Address: ${data.companyAddress}`, 55, 99, { width: 420 });
+        }
 
         // Refund Title Banner
         doc.rect(40, 125, 515, 30).fill('#b91c1c'); // Crimson

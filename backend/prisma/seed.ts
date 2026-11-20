@@ -88,17 +88,25 @@ async function main() {
   // 5. Seed System Settings
   const settings = await prisma.systemSetting.upsert({
     where: { id: 'SYSTEM_CONFIG' },
-    update: {},
+    update: {
+      companyName: 'Potential Investment Real Estate Ltd.',
+      companyTagline: 'Your Trusted Partner in Land Sales',
+      companyEmail: 'potentialrealestate04@gmail.com',
+      companyPhone: '0541196364',
+      companyAddress: 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.',
+      companyLogoUrl: '/uploads/logo.png',
+    },
     create: {
       id: 'SYSTEM_CONFIG',
-      companyName: 'Ghana Real Estate Developers',
-      companyTagline: 'Securing Your Land & Future with Trust',
-      companyEmail: 'info@realestatedev.gh',
-      companyPhone: '+233 30 200 0000',
-      companyAddress: 'Airport Residential Area, Accra, Ghana',
+      companyName: 'Potential Investment Real Estate Ltd.',
+      companyTagline: 'Your Trusted Partner in Land Sales',
+      companyEmail: 'potentialrealestate04@gmail.com',
+      companyPhone: '0541196364',
+      companyAddress: 'Ashaiman New Tulaku, Adjacent to New Tulaku Police Station.',
+      companyLogoUrl: '/uploads/logo.png',
       defaultCurrency: 'GHS',
       currencySymbol: 'GH₵',
-      emailFromAddress: 'receipts@realestatedev.gh',
+      emailFromAddress: 'potentialrealestate04@gmail.com',
     },
   });
   console.log(`- System settings seeded with currency ${settings.defaultCurrency} (${settings.currencySymbol})`);

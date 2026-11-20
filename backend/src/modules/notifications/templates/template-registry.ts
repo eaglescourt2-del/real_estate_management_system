@@ -267,5 +267,71 @@ export const DEFAULT_NOTIFICATION_TEMPLATES: DefaultTemplateDefinition[] = [
       <p>Warm regards,<br><strong>Finance & Treasury Operations</strong><br>{{companyName}}</p>
     `,
   },
+
+  // 9. Promotional Broadcast & New Site Launch - WhatsApp
+  {
+    channel: NotificationChannel.WHATSAPP,
+    event: NotificationTriggerEvent.PROMO_BROADCAST,
+    name: 'Promotional Campaign & Site Announcement (WhatsApp)',
+    templateIdentifier: 'promo_broadcast_whatsapp',
+    bodyTemplate:
+      '📢 Special Announcement - {{companyName}}\n\nDear {{customerName}},\n\n*{{promoTitle}}*\n\n{{promoMessage}}\n\n📍 Location: {{promoLocation}}\n🏷️ Special Offer: {{promoOffer}}\n\nFor priority reservations or site visit bookings, contact your dedicated consultant or call us directly at {{companyPhone}}.\n\nInvest today with peace of mind!',
+  },
+  // 9. Promotional Broadcast & New Site Launch - Email
+  {
+    channel: NotificationChannel.EMAIL,
+    event: NotificationTriggerEvent.PROMO_BROADCAST,
+    name: 'Promotional Campaign & Site Announcement (Email)',
+    templateIdentifier: 'promo_broadcast_email',
+    bodyTemplate: `
+      <h2>Exclusive Announcement: {{promoTitle}}</h2>
+      <p>Dear <strong>{{customerName}}</strong>,</p>
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="color: #0f172a; margin-top: 0;">{{promoTitle}}</h3>
+        <p style="color: #334155; line-height: 1.6;">{{promoMessage}}</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+          <tr><td style="padding: 6px 0; color: #64748b;"><strong>Target Site:</strong></td><td style="color: #0f172a; font-weight: 600;">{{promoLocation}}</td></tr>
+          <tr><td style="padding: 6px 0; color: #64748b;"><strong>Special Offer / Terms:</strong></td><td style="color: #d97706; font-weight: bold;">{{promoOffer}}</td></tr>
+        </table>
+      </div>
+      <p>Appointments for guided site inspections are now open. Speak to our sales desk at {{companyPhone}} or reply directly to this email.</p>
+      <p>Warm regards,<br><strong>Marketing & Client Relations</strong><br>{{companyName}}</p>
+    `,
+  },
+
+  // 10. Documents Ready for Collection - WhatsApp
+  {
+    channel: NotificationChannel.WHATSAPP,
+    event: NotificationTriggerEvent.DOCUMENT_READY,
+    name: 'Documents Ready for Collection (WhatsApp)',
+    templateIdentifier: 'document_ready_whatsapp',
+    bodyTemplate:
+      '📑 Document Collection Notice - {{companyName}}\n\nDear {{customerName}},\n\nWe are pleased to inform you that your official land documents are prepared and ready for collection!\n\n• Document Type(s): {{documentType}}\n• Land Location: {{landLocation}}\n• Plot Number(s): {{plotNumber}}\n• Reference ID: {{customerNumber}}\n• Collection Venue: {{collectionOffice}}\n• Operating Hours: {{officeHours}}\n\nPlease bring a valid national ID (Ghana Card / Passport) for verification upon pickup. For enquiries, call {{companyPhone}}.',
+  },
+  // 10. Documents Ready for Collection - Email
+  {
+    channel: NotificationChannel.EMAIL,
+    event: NotificationTriggerEvent.DOCUMENT_READY,
+    name: 'Documents Ready for Collection (Email)',
+    templateIdentifier: 'document_ready_email',
+    bodyTemplate: `
+      <h2>Official Notice: Land Documents Ready for Collection</h2>
+      <p>Dear <strong>{{customerName}}</strong>,</p>
+      <p>We are delighted to confirm that your official land title and conveyance documentation has completed validation and is now ready for collection at our executive offices.</p>
+      <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+        <h4 style="margin-top: 0; color: #166534;">Document Details:</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><td style="padding: 6px 0;"><strong>Document Type(s):</strong></td><td><strong>{{documentType}}</strong></td></tr>
+          <tr><td style="padding: 6px 0;"><strong>Plot Allocation:</strong></td><td>{{plotNumber}} at {{landLocation}}</td></tr>
+          <tr><td style="padding: 6px 0;"><strong>Client Number:</strong></td><td>{{customerNumber}}</td></tr>
+          <tr><td style="padding: 6px 0;"><strong>Collection Center:</strong></td><td>{{collectionOffice}}</td></tr>
+          <tr><td style="padding: 6px 0;"><strong>Hours of Collection:</strong></td><td>{{officeHours}}</td></tr>
+        </table>
+      </div>
+      <p><strong>Requirements for Collection:</strong><br>Please present your original valid Ghana Card or Passport. If delegating a representative, an official notarized power of attorney or authorization letter accompanied by photo ID is required.</p>
+      <p>Congratulations once again on your land acquisition!</p>
+      <p>Sincerely,<br><strong>Legal & Documentation Department</strong><br>{{companyName}}</p>
+    `,
+  },
 ];
 

@@ -30,13 +30,13 @@ export class InventoryService {
       blockedPlots,
       cancelledPlots,
     ] = await Promise.all([
-      this.prisma.plot.count(),
-      this.prisma.plot.count({ where: { status: PlotStatus.AVAILABLE } }),
-      this.prisma.plot.count({ where: { status: PlotStatus.RESERVED } }),
-      this.prisma.plot.count({ where: { status: PlotStatus.PARTIALLY_SOLD } }),
-      this.prisma.plot.count({ where: { status: PlotStatus.SOLD } }),
-      this.prisma.plot.count({ where: { status: PlotStatus.BLOCKED } }),
-      this.prisma.plot.count({ where: { status: PlotStatus.CANCELLED } }),
+      this.prisma.plot.count({ where: { parentPlotId: null } }),
+      this.prisma.plot.count({ where: { parentPlotId: null, status: PlotStatus.AVAILABLE } }),
+      this.prisma.plot.count({ where: { parentPlotId: null, status: PlotStatus.RESERVED } }),
+      this.prisma.plot.count({ where: { parentPlotId: null, status: PlotStatus.PARTIALLY_SOLD } }),
+      this.prisma.plot.count({ where: { parentPlotId: null, status: PlotStatus.SOLD } }),
+      this.prisma.plot.count({ where: { parentPlotId: null, status: PlotStatus.BLOCKED } }),
+      this.prisma.plot.count({ where: { parentPlotId: null, status: PlotStatus.CANCELLED } }),
     ]);
 
     // Aggregate monetary values from active allocations

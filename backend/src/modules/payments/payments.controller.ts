@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -10,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { RecordPaymentDto } from './dto/record-payment.dto';
+import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { ReversePaymentDto } from './dto/reverse-payment.dto';
 import { PaymentQueryDto } from './dto/payment-query.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -46,10 +48,27 @@ export class PaymentsController {
     return this.paymentsService.findAll(query, staffUser);
   }
 
+  @Get('active-allocations')
+  @ApiOperation({ summary: 'Get active allocations for recording payments' })
+  async getActiveAllocations(@CurrentUser() staffUser: { id: string; role: UserRole }) {
+    return this.paymentsService.getActiveAllocations(staffUser);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Retrieve specific payment details, receipt link, and customer allocation' })
   async findOne(@Param('id') id: string) {
     return this.paymentsService.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'Update customer payment details with balance adjustment' })
+  async updatePayment(
+    @Param('id') id: string,
+    @Body() dto: UpdatePaymentDto,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.paymentsService.updatePayment(id, dto, staffUser);
   }
 
   @Post(':id/reverse')

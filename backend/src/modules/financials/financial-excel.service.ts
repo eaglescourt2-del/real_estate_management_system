@@ -29,7 +29,11 @@ export interface FinancialExcelData {
   summary: {
     totalRevenue: number;
     totalExpenses: number;
-    netOperatingProfit: number;
+    totalOperationalExpenses: number;
+    netOperationalProfit: number;
+    totalLandownerDisbursements: number;
+    totalRefundDisbursements: number;
+    netOverallCashFlow: number;
   };
 }
 
@@ -106,44 +110,90 @@ export class FinancialExcelService {
 
     summarySheet.addRow([]);
 
-    // Section 2: Operating Expenses
-    summarySheet.addRow(['OPERATING EXPENDITURE', 'AMOUNT (GHS)', '% OF REVENUE']);
-    const expHeaderRow = summarySheet.lastRow;
-    expHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    expHeaderRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+    // Section 2: Core Operational Expenses (Excl. Landowner & Refunds)
+    summarySheet.addRow(['CORE OPERATIONAL EXPENDITURE (EXCL. LANDOWNER)', 'AMOUNT (GHS)', '% OF REVENUE']);
+    const opExpHeaderRow = summarySheet.lastRow;
+    opExpHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    opExpHeaderRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
 
-    const expenseByCategory: Record<string, number> = {};
+    const opExpensesByCategory: Record<string, number> = {};
     for (const exp of data.expenseRecords) {
-      expenseByCategory[exp.categoryCode] = (expenseByCategory[exp.categoryCode] || 0) + Number(exp.amount);
+      const isLandowner =
+        exp.categoryCode === 'LANDOWNER_PAYMENT' ||
+        exp.categoryCode === 'LAND_ACQUISITION';
+      const isRefund = exp.categoryCode === 'CUSTOMER_REFUND_DISBURSEMENT';
+
+      if (!isLandowner && !isRefund) {
+        opExpensesByCategory[exp.categoryCode] = (opExpensesByCategory[exp.categoryCode] || 0) + Number(exp.amount);
+      }
     }
 
-    for (const [cat, amt] of Object.entries(expenseByCategory)) {
+    for (const [cat, amt] of Object.entries(opExpensesByCategory)) {
       const pct = data.summary.totalRevenue > 0 ? (amt / data.summary.totalRevenue) * 100 : 0;
       const row = summarySheet.addRow([cat.replace(/_/g, ' '), amt, `${pct.toFixed(1)}%`]);
       row.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
     }
 
-    const totalExpRow = summarySheet.addRow(['TOTAL OPERATING EXPENSES', data.summary.totalExpenses, '']);
-    totalExpRow.font = { bold: true };
-    totalExpRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
-    totalExpRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF2F2' } };
+    const totalOpExpRow = summarySheet.addRow(['TOTAL OPERATIONAL EXPENSES (EXCL. LANDOWNER)', data.summary.totalOperationalExpenses, '']);
+    totalOpExpRow.font = { bold: true };
+    totalOpExpRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
+    totalOpExpRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF2F2' } };
 
     summarySheet.addRow([]);
 
-    // Section 3: Net Operating Income
-    const netRow = summarySheet.addRow([
-      'NET OPERATING INCOME / CASH SURPLUS',
-      data.summary.netOperatingProfit,
+    // Section 3: Net Operational Profit (Core Operations)
+    const netOpRow = summarySheet.addRow([
+      'NET OPERATIONAL PROFIT (EXCL. LANDOWNER)',
+      data.summary.netOperationalProfit,
       data.summary.totalRevenue > 0
-        ? `${((data.summary.netOperatingProfit / data.summary.totalRevenue) * 100).toFixed(1)}%`
+        ? `${((data.summary.netOperationalProfit / data.summary.totalRevenue) * 100).toFixed(1)}%`
         : '0.0%',
     ]);
-    netRow.font = { bold: true, size: 12 };
-    netRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
-    netRow.fill = {
+    netOpRow.font = { bold: true, size: 11 };
+    netOpRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
+    netOpRow.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: data.summary.netOperatingProfit >= 0 ? 'FFD1FAE5' : 'FFFEE2E2' },
+      fgColor: { argb: data.summary.netOperationalProfit >= 0 ? 'FFD1FAE5' : 'FFFEE2E2' },
+    };
+
+    summarySheet.addRow([]);
+
+    // Section 4: Capital Land Acquisitions & Refunds
+    summarySheet.addRow(['LANDOWNER DISBURSEMENTS & CAPITAL OUTFLOWS', 'AMOUNT (GHS)', 'TYPE']);
+    const capHeaderRow = summarySheet.lastRow;
+    capHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    capHeaderRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+
+    const loRow = summarySheet.addRow(['Total Disbursements to Landowners', data.summary.totalLandownerDisbursements, 'Capital Land Acquisition']);
+    loRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
+    loRow.font = { bold: true };
+
+    const refRow = summarySheet.addRow(['Total Customer Refunds Disbursed', data.summary.totalRefundDisbursements, 'Approved Plot Cancellations']);
+    refRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
+    refRow.font = { bold: true };
+
+    const totalOutflowRow = summarySheet.addRow(['TOTAL COMBINED CASH OUTFLOW', data.summary.totalExpenses, 'All Outflows']);
+    totalOutflowRow.font = { bold: true };
+    totalOutflowRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
+    totalOutflowRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+    summarySheet.addRow([]);
+
+    // Section 5: Net Cash Flow / Overall Surplus (Deficit)
+    const netCashRow = summarySheet.addRow([
+      'NET CASH POSITION / OVERALL SURPLUS (DEFICIT)',
+      data.summary.netOverallCashFlow,
+      data.summary.totalRevenue > 0
+        ? `${((data.summary.netOverallCashFlow / data.summary.totalRevenue) * 100).toFixed(1)}%`
+        : '0.0%',
+    ]);
+    netCashRow.font = { bold: true, size: 12 };
+    netCashRow.getCell(2).numFmt = `"${data.currencySymbol}" #,##0.00`;
+    netCashRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: data.summary.netOverallCashFlow >= 0 ? 'FFD1FAE5' : 'FFFEE2E2' },
     };
 
     // -------------------------------------------------------------

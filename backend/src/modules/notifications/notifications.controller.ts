@@ -118,6 +118,79 @@ export class NotificationsController {
     return this.notificationsService.retryNotification(id);
   }
 
+  @Get('reminders-preview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMINISTRATOR,
+    UserRole.MANAGING_DIRECTOR,
+    UserRole.ADMINISTRATOR,
+    UserRole.SALES_AGENT,
+  )
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Preview customers with due payment instalments' })
+  async getRemindersPreview() {
+    return this.notificationsService.getPaymentDueRemindersPreview();
+  }
+
+  @Post('send-monthly-reminders')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMINISTRATOR,
+    UserRole.MANAGING_DIRECTOR,
+    UserRole.ADMINISTRATOR,
+  )
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Broadcast automated monthly payment due reminders via WhatsApp & Email' })
+  async sendMonthlyReminders(@Body() body: { allocationIds?: string[] }) {
+    return this.notificationsService.broadcastPaymentDueReminders(body?.allocationIds);
+  }
+
+  @Post('send-promo')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMINISTRATOR,
+    UserRole.MANAGING_DIRECTOR,
+    UserRole.ADMINISTRATOR,
+  )
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Broadcast promotional campaign & site announcements to clients' })
+  async sendPromo(
+    @Body()
+    dto: {
+      title: string;
+      message: string;
+      location?: string;
+      offer?: string;
+      channel?: 'ALL' | 'WHATSAPP' | 'EMAIL';
+      customerIds?: string[];
+    },
+  ) {
+    return this.notificationsService.broadcastPromo(dto);
+  }
+
+  @Post('send-document-ready')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SUPER_ADMINISTRATOR,
+    UserRole.MANAGING_DIRECTOR,
+    UserRole.ADMINISTRATOR,
+    UserRole.SALES_AGENT,
+  )
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send official notice that documents are ready for collection' })
+  async sendDocumentReady(
+    @Body()
+    dto: {
+      customerId: string;
+      allocationId?: string;
+      documentType?: string;
+      collectionOffice?: string;
+      officeHours?: string;
+    },
+  ) {
+    return this.notificationsService.triggerDocumentReady(dto);
+  }
+
   @Get('templates')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(

@@ -2,6 +2,9 @@ import {
   Controller,
   Post,
   Get,
+  Put,
+  Delete,
+  Param,
   Body,
   Req,
   UseGuards,
@@ -13,11 +16,13 @@ import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterStaffDto } from './dto/register-staff.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResetStaffPasswordDto } from './dto/reset-staff-password.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 
 @ApiTags('Authentication & Access Control')
 @Controller('auth')
@@ -62,6 +67,65 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh expired access token with valid refresh token' })
   async refreshToken(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshToken(refreshToken);
+  }
+
+  @Get('users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMINISTRATOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'List all staff users (Super Administrator only)' })
+  async listUsers() {
+    return this.authService.listUsers();
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Change current user password' })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(userId, dto.currentPassword, dto.newPassword);
+  }
+
+  @Put('users/:id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMINISTRATOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update staff member active/suspended status (Super Admin only)' })
+  async updateUserStatus(
+    @Param('id') targetUserId: string,
+    @Body('status') status: UserStatus,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.authService.updateUserStatus(targetUserId, status, adminUserId);
+  }
+
+  @Put('users/:id/reset-password')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMINISTRATOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Reset a staff member password (Super Admin only)' })
+  async resetUserPassword(
+    @Param('id') targetUserId: string,
+    @Body() dto: ResetStaffPasswordDto,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.authService.resetUserPassword(targetUserId, dto.newPassword, adminUserId);
+  }
+
+  @Delete('users/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMINISTRATOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete a staff account permanently (Super Admin only)' })
+  async deleteUser(
+    @Param('id') targetUserId: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.authService.deleteUser(targetUserId, adminUserId);
   }
 }
 

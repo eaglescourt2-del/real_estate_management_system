@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Save,
   AlertCircle,
+  ShieldAlert,
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -85,6 +86,20 @@ export default function SettingsPage() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-3 border-amber-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (user && user.role !== 'SUPER_ADMINISTRATOR') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-xs max-w-lg mx-auto mt-12">
+        <div className="p-4 bg-amber-100 text-amber-700 rounded-full mb-4">
+          <ShieldAlert className="h-10 w-10" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Super Administrator Access Only</h2>
+        <p className="text-sm text-slate-500 mt-2 max-w-md">
+          System & White-Label settings are strictly restricted to the Super Administrator account.
+        </p>
       </div>
     );
   }

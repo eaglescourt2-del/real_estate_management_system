@@ -34,12 +34,18 @@ import {
 const PIE_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'];
 
 export default function DashboardOverviewPage() {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard-overview'],
     queryFn: () => apiRequest('/dashboard/overview'),
   });
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="flex flex-col items-center space-y-3">
@@ -171,20 +177,24 @@ export default function DashboardOverviewPage() {
         {/* Net Cash Flow Position */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-            <span>Net Operational Cash Flow</span>
+            <span>Net Overall Cash Flow</span>
             <CheckCircle className="h-4 w-4 text-emerald-600" />
           </div>
           <p
             className={`mt-2 text-2xl font-extrabold ${
-              kpis.financials.netCashFlow >= 0 ? 'text-emerald-700' : 'text-red-600'
+              kpis.financials.netCashFlow >= 0 ? 'text-emerald-700' : 'text-slate-900'
             }`}
           >
             {formatGHS(kpis.financials.netCashFlow)}
           </p>
           <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
-            <span>Expenses + Refunds:</span>
-            <span className="font-semibold text-slate-700">
-              {formatGHS(kpis.financials.totalOperationalExpenses + kpis.financials.totalCustomerRefundsDisbursed)}
+            <span>Total Outflow (OpEx + Land):</span>
+            <span className="font-semibold text-slate-700 font-mono">
+              {formatGHS(
+                kpis.financials.totalOperationalExpenses +
+                  kpis.financials.totalLandownerPaid +
+                  kpis.financials.totalCustomerRefundsDisbursed,
+              )}
             </span>
           </div>
         </div>

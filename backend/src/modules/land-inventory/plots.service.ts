@@ -511,4 +511,19 @@ export class PlotsService {
       };
     });
   }
+
+  async getActiveAllocations() {
+    return this.prisma.plotAllocation.findMany({
+      where: {
+        status: { in: [AllocationStatus.RESERVED, AllocationStatus.ACTIVE_INSTALMENT, AllocationStatus.PAID_IN_FULL] },
+      },
+      orderBy: { allocatedAt: 'desc' },
+      include: {
+        customer: true,
+        plot: {
+          include: { landLocation: true },
+        },
+      },
+    });
+  }
 }

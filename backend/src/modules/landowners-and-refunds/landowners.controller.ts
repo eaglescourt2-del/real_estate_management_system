@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -11,6 +13,7 @@ import { LandownersService } from './landowners.service';
 import { CreateLandownerDto } from './dto/create-landowner.dto';
 import { CreateAgreementDto } from './dto/create-agreement.dto';
 import { RecordLandownerPaymentDto } from './dto/record-landowner-payment.dto';
+import { UpdateLandownerPaymentDto } from './dto/update-landowner-payment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,6 +39,38 @@ export class LandownersController {
   @ApiOperation({ summary: 'List all landowners and associated acquisition agreements' })
   async findAllLandowners() {
     return this.landownersService.findAllLandowners();
+  }
+
+  @Get('obligations')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.MANAGING_DIRECTOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'List all landowner obligations by land location, landowner, and purchase price' })
+  async getObligations() {
+    return this.landownersService.getObligations();
+  }
+
+  @Get('agreements/active')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.MANAGING_DIRECTOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'List active landowner agreements for disbursement' })
+  async getActiveAgreements() {
+    return this.landownersService.getActiveAgreements();
+  }
+
+  @Get('payments/:id')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.MANAGING_DIRECTOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'Get landowner payment details and voucher' })
+  async findOnePayment(@Param('id') id: string) {
+    return this.landownersService.findOnePayment(id);
+  }
+
+  @Patch('payments/:id')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'Edit an existing landowner payment record' })
+  async updateLandownerPayment(
+    @Param('id') id: string,
+    @Body() dto: UpdateLandownerPaymentDto,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.landownersService.updateLandownerPayment(id, dto, staffUser);
   }
 
   @Get(':id')
@@ -65,6 +100,24 @@ export class LandownersController {
     @CurrentUser() staffUser: { id: string; role: UserRole },
   ) {
     return this.landownersService.recordLandownerPayment(dto, staffUser);
+  }
+
+  @Delete('obligations/:locationId')
+  @ApiOperation({ summary: 'Delete a landowner obligation and agreements for a land location' })
+  async deleteObligation(
+    @Param('locationId') locationId: string,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.landownersService.deleteObligation(locationId, staffUser);
+  }
+
+  @Delete('payments/:id')
+  @ApiOperation({ summary: 'Delete an existing landowner payment record' })
+  async deleteLandownerPayment(
+    @Param('id') id: string,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.landownersService.deleteLandownerPayment(id, staffUser);
   }
 }
 

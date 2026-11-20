@@ -188,5 +188,232 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token.');
     }
   }
+
+  async listUsers() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        telephone: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User profile not found.');
+    }
+
+    const isCurrentValid = await argon2.verify(user.passwordHash, currentPassword);
+    if (!isCurrentValid) {
+      throw new BadRequestException('Incorrect current password.');
+    }
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('New password cannot be the same as your current password.');
+    }
+
+    const passwordHash = await argon2.hash(newPassword, {
+      type: argon2.argon2id,
+      memoryCost: 65536,
+      timeCost: 3,
+      parallelism: 4,
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: AuditAction.UPDATE,
+        entityName: 'USER_PASSWORD',
+        entityId: user.id,
+        newValues: { message: 'User self-changed password' },
+      },
+    });
+
+    return { message: 'Password updated successfully. Please use your new password for future logins.' };
+  }
+
+  async updateUserStatus(targetUserId: string, status: UserStatus, adminUserId: string) {
+    if (targetUserId === adminUserId) {
+      throw new BadRequestException('You cannot modify your own administrative account status.');
+    }
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      throw new BadRequestException('Target staff member not found.');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { status },
+      select: {
+        id: true,
+        email: true,
+        telephone: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: adminUserId,
+        action: AuditAction.UPDATE,
+        entityName: 'USER_STATUS',
+        entityId: targetUserId,
+        oldValues: { status: targetUser.status },
+        newValues: { status },
+      },
+    });
+
+    return {
+      message: `Staff member ${updated.firstName} ${updated.lastName} status changed to ${status}.`,
+      user: updated,
+    };
+  }
+
+  async resetUserPassword(targetUserId: string, newPassword: string, adminUserId: string) {
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      throw new BadRequestException('Target staff member not found.');
+    }
+
+    const passwordHash = await argon2.hash(newPassword, {
+      type: argon2.argon2id,
+      memoryCost: 65536,
+      timeCost: 3,
+      parallelism: 4,
+    });
+
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { passwordHash },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: adminUserId,
+        action: AuditAction.UPDATE,
+        entityName: 'USER_PASSWORD_RESET',
+        entityId: targetUserId,
+        newValues: { resetBy: adminUserId },
+      },
+    });
+
+    return {
+      message: `Temporary password set successfully for ${targetUser.firstName} ${targetUser.lastName}.`,
+    };
+  }
+
+  async deleteUser(targetUserId: string, adminUserId: string) {
+    if (targetUserId === adminUserId) {
+      throw new BadRequestException('You cannot delete your own administrative account.');
+    }
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      throw new BadRequestException('Staff member not found.');
+    }
+
+    // Safely reassign any operational & audit foreign keys to the deleting Super Admin
+    await this.prisma.$transaction([
+      this.prisma.customer.updateMany({
+        where: { assignedAgentId: targetUserId },
+        data: { assignedAgentId: adminUserId },
+      }),
+      this.prisma.customer.updateMany({
+        where: { createdById: targetUserId },
+        data: { createdById: adminUserId },
+      }),
+      this.prisma.plotAllocation.updateMany({
+        where: { salesAgentId: targetUserId },
+        data: { salesAgentId: adminUserId },
+      }),
+      this.prisma.customerPayment.updateMany({
+        where: { recordedByUserId: targetUserId },
+        data: { recordedByUserId: adminUserId },
+      }),
+      this.prisma.customerPayment.updateMany({
+        where: { verifiedByUserId: targetUserId },
+        data: { verifiedByUserId: adminUserId },
+      }),
+      this.prisma.expense.updateMany({
+        where: { recordedByUserId: targetUserId },
+        data: { recordedByUserId: adminUserId },
+      }),
+      this.prisma.expense.updateMany({
+        where: { approvedByUserId: targetUserId },
+        data: { approvedByUserId: adminUserId },
+      }),
+      this.prisma.refundRequest.updateMany({
+        where: { requestedByUserId: targetUserId },
+        data: { requestedByUserId: adminUserId },
+      }),
+      this.prisma.refundRequest.updateMany({
+        where: { reviewedByUserId: targetUserId },
+        data: { reviewedByUserId: adminUserId },
+      }),
+      this.prisma.refundRequest.updateMany({
+        where: { approvedByUserId: targetUserId },
+        data: { approvedByUserId: adminUserId },
+      }),
+      this.prisma.landownerPayment.updateMany({
+        where: { recordedByUserId: targetUserId },
+        data: { recordedByUserId: adminUserId },
+      }),
+      this.prisma.auditLog.updateMany({
+        where: { userId: targetUserId },
+        data: { userId: null },
+      }),
+      this.prisma.user.delete({
+        where: { id: targetUserId },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId: adminUserId,
+          action: AuditAction.DELETE_ATTEMPT,
+          entityName: 'USER',
+          entityId: targetUserId,
+          oldValues: {
+            email: targetUser.email,
+            role: targetUser.role,
+            name: `${targetUser.firstName} ${targetUser.lastName}`,
+          },
+          newValues: { message: 'Staff member account permanently deleted and records reassigned to admin.' },
+        },
+      }),
+    ]);
+
+    return {
+      message: `Staff member ${targetUser.firstName} ${targetUser.lastName} (${targetUser.email}) has been permanently deleted.`,
+    };
+  }
 }
 

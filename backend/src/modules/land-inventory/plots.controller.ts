@@ -93,5 +93,11 @@ export class PlotsController {
   ) {
     return this.plotsService.releaseQuarantinedPlot(plotId, remarks || 'Verified by site inspection', staffUserId);
   }
+
+  @Get('plots/allocations/active')
+  @ApiOperation({ summary: 'List all active plot allocations' })
+  async getActiveAllocations() {
+    return this.plotsService.getActiveAllocations();
+  }
 }
 

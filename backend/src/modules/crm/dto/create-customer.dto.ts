@@ -5,6 +5,9 @@ import {
   IsEmail,
   IsEnum,
   Matches,
+  IsArray,
+  IsNumber,
+  Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IdType, PhotoSource } from '@prisma/client';
@@ -57,6 +60,11 @@ export class CreateCustomerDto {
   @IsString()
   occupation?: string;
 
+  @ApiPropertyOptional({ example: '1988-05-24', description: 'Date of Birth (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsString()
+  dateOfBirth?: string;
+
   @ApiPropertyOptional({ enum: IdType, example: IdType.GHANA_CARD })
   @IsOptional()
   @IsEnum(IdType)
@@ -78,6 +86,11 @@ export class CreateCustomerDto {
   @IsString()
   cameraPhotoBase64?: string;
 
+  @ApiPropertyOptional({ description: 'Base64 image data URL from live device webcam capture or file upload' })
+  @IsOptional()
+  @IsString()
+  photoBase64?: string;
+
   @ApiPropertyOptional({ description: 'Uploaded photograph file URL (e.g. /uploads/photos/xyz.jpg)' })
   @IsOptional()
   @IsString()
@@ -87,5 +100,51 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsEnum(PhotoSource)
   photoSource?: PhotoSource;
+
+  // Land Location & Plot Acquisition Fields
+  @ApiPropertyOptional({ description: 'Land Location ID if selecting plots during registration' })
+  @IsOptional()
+  @IsString()
+  landLocationId?: string;
+
+  @ApiPropertyOptional({ description: 'Array of Plot UUIDs selected for purchase', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  plotIds?: string[];
+
+  @ApiPropertyOptional({ example: 'OUTRIGHT', enum: ['OUTRIGHT', 'INSTALMENT'] })
+  @IsOptional()
+  @IsString()
+  paymentTerms?: string;
+
+  @ApiPropertyOptional({ example: 6, description: 'Instalment period in months: 3, 6, 9, or 12' })
+  @IsOptional()
+  @IsNumber()
+  instalmentMonths?: number;
+
+  @ApiPropertyOptional({ example: 45000.0, description: 'Standard unit price per plot in GH₵' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  unitPrice?: number;
+
+  @ApiPropertyOptional({ example: 1000.0, description: 'Calculated instalment interest surcharge in GH₵' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  interestAmount?: number;
+
+  @ApiPropertyOptional({ example: 46000.0, description: 'Total agreed purchase amount including interest in GH₵' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  totalAmount?: number;
+
+  @ApiPropertyOptional({ example: 15000.0, description: 'Initial deposit paid at registration in GH₵' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  initialDeposit?: number;
 }
 

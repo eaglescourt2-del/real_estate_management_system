@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -67,6 +68,19 @@ export class RefundsController {
     return this.refundsService.approveRefund(id, dto, staffUser);
   }
 
+  @Post(':id/approve')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.MANAGING_DIRECTOR)
+  @ApiOperation({
+    summary: 'Approve or reject customer refund & deductions (POST alias)',
+  })
+  async approveRefundPost(
+    @Param('id') id: string,
+    @Body() dto: ApproveRefundRequestDto,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.refundsService.approveRefund(id, dto, staffUser);
+  }
+
   @Post(':id/disburse')
   @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.ADMINISTRATOR)
   @ApiOperation({
@@ -78,6 +92,15 @@ export class RefundsController {
     @CurrentUser() staffUser: { id: string; role: UserRole },
   ) {
     return this.refundsService.disburseRefundPayment(id, dto, staffUser);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a customer refund request and restore quarantined plot' })
+  async deleteRefundRequest(
+    @Param('id') id: string,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.refundsService.deleteRefundRequest(id, staffUser);
   }
 }
 

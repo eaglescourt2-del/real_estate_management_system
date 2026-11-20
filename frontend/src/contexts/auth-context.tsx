@@ -70,9 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  const hasRole = (roles: UserRole[]): boolean => {
+  const hasRole = (roles?: UserRole[]): boolean => {
     if (!user) return false;
-    return roles.includes(user.role);
+    // Permissions removed: all authenticated staff members have full access to all actions, navigation, and features
+    return true;
   };
 
   return (

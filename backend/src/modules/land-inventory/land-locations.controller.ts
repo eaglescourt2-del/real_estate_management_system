@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -9,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LandLocationsService } from './land-locations.service';
 import { CreateLandLocationDto } from './dto/create-location.dto';
+import { UpdateLandLocationDto } from './dto/update-location.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -40,10 +43,23 @@ export class LandLocationsController {
     return this.locationsService.findOne(id);
   }
 
+  @Patch(':id')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'Update an existing land location (Super Admin & Admin)' })
+  async update(@Param('id') id: string, @Body() dto: UpdateLandLocationDto) {
+    return this.locationsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'Delete a land location if no active plots/allocations exist' })
+  async remove(@Param('id') id: string) {
+    return this.locationsService.remove(id);
+  }
+
   @Get(':id/inventory-breakdown')
   @ApiOperation({ summary: 'Get total, available, reserved, sold, and partially sold plot counts for a location' })
   async getInventoryBreakdown(@Param('id') id: string) {
     return this.locationsService.getLocationInventoryBreakdown(id);
   }
 }
-

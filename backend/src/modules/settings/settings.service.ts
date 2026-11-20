@@ -19,10 +19,11 @@ export class SettingsService {
         data: {
           id: this.SETTING_ID,
           companyName: 'Ghana Real Estate Developers',
-          companyTagline: 'Securing Your Land & Future',
+          companyTagline: 'Securing Your Land & Future with Trust',
           companyEmail: 'info@realestatedev.gh',
-          companyPhone: '+233 30 000 0000',
+          companyPhone: '+233 30 200 0000',
           companyAddress: 'Airport Residential Area, Accra, Ghana',
+          companyLogoUrl: null,
           defaultCurrency: 'GHS',
           currencySymbol: 'GH₵',
         },

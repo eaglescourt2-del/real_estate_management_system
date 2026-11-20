@@ -37,4 +37,6 @@ Thumbs.db
 uploads/
 temp/
 pdf_cache/
+backend/data/
+*.tsbuildinfo
 

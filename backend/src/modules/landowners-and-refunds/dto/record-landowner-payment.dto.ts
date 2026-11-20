@@ -11,20 +11,32 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentChannel } from '@prisma/client';
 
 export class RecordLandownerPaymentDto {
-  @ApiProperty({ description: 'Landowner Agreement UUID' })
+  @ApiPropertyOptional({ description: 'Landowner Agreement UUID' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  agreementId: string;
+  agreementId?: string;
 
-  @ApiProperty({ example: 150000.0, description: 'Amount disbursed to landowner in GHS' })
+  @ApiPropertyOptional({ description: 'Land Location UUID (if recording directly against a land location)' })
+  @IsOptional()
+  @IsString()
+  landLocationId?: string;
+
+  @ApiPropertyOptional({ example: 150000.0, description: 'Amount disbursed to landowner in GHS' })
+  @IsOptional()
   @IsNumber()
   @IsPositive()
-  amount: number;
+  amount?: number;
+
+  @ApiPropertyOptional({ example: 150000.0, description: 'Alias for amount' })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  amountPaid?: number;
 
   @ApiProperty({
     enum: PaymentChannel,
     example: PaymentChannel.BANK_TRANSFER,
-    description: 'Selected means of external payment: BANK_TRANSFER, BANK_DIRECT_DEPOSIT, MOBILE_MONEY_MTN, CASH, CHEQUE',
+    description: 'Selected means of external payment: BANK_TRANSFER, MOBILE_MONEY_MTN, MOBILE_MONEY_TELECEL, MOBILE_MONEY_AT, CASH, CHEQUE',
   })
   @IsEnum(PaymentChannel)
   paymentChannel: PaymentChannel;
@@ -33,6 +45,16 @@ export class RecordLandownerPaymentDto {
   @IsOptional()
   @IsString()
   bankTransactionRef?: string;
+
+  @ApiPropertyOptional({ example: 'GCB Wire #92847', description: 'Alias for bankTransactionRef' })
+  @IsOptional()
+  @IsString()
+  externalReference?: string;
+
+  @ApiPropertyOptional({ example: 'Stanbic Bank', description: 'Bank name' })
+  @IsOptional()
+  @IsString()
+  bankName?: string;
 
   @ApiPropertyOptional({ example: 'CHQ-890214', description: 'Cheque number if payment by cheque' })
   @IsOptional()
@@ -43,6 +65,11 @@ export class RecordLandownerPaymentDto {
   @IsOptional()
   @IsString()
   remarks?: string;
+
+  @ApiPropertyOptional({ example: 'Tranche payment notes', description: 'Alias for remarks' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
   @ApiPropertyOptional({ example: '2026-11-05T09:30:00Z', description: 'Disbursement date' })
   @IsOptional()

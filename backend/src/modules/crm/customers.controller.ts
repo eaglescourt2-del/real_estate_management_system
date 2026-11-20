@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -47,6 +48,14 @@ export class CustomersController {
     return this.customersService.findAll(query, staffUser);
   }
 
+  @Get('trash')
+  @ApiOperation({ summary: 'List deleted customers in the trash' })
+  async getTrash(
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.customersService.getTrash(staffUser);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Retrieve comprehensive customer profile (biometrics, plots, payment history, documents)',
@@ -68,6 +77,33 @@ export class CustomersController {
     return this.customersService.update(id, dto, staffUser);
   }
 
+  @Delete(':id')
+  @ApiOperation({ summary: 'Move customer to trash (soft delete)' })
+  async softDelete(
+    @Param('id') id: string,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.customersService.softDelete(id, staffUser);
+  }
+
+  @Patch(':id/restore')
+  @ApiOperation({ summary: 'Restore customer from trash' })
+  async restoreFromTrash(
+    @Param('id') id: string,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.customersService.restoreFromTrash(id, staffUser);
+  }
+
+  @Delete(':id/permanent')
+  @ApiOperation({ summary: 'Permanently delete customer and related records from database' })
+  async permanentDelete(
+    @Param('id') id: string,
+    @CurrentUser() staffUser: { id: string; role: UserRole },
+  ) {
+    return this.customersService.permanentDelete(id, staffUser);
+  }
+
   @Post(':id/documents')
   @ApiOperation({ summary: 'Attach supporting KYC/identity document or agreement to customer' })
   async addDocument(
@@ -83,6 +119,7 @@ export class CustomersController {
   async updatePhotograph(
     @Param('id') id: string,
     @Body('cameraPhotoBase64') cameraPhotoBase64?: string,
+    @Body('photoBase64') photoBase64?: string,
     @Body('photoUrl') photoUrl?: string,
     @Body('photoSource') photoSource?: PhotoSource,
     @CurrentUser() staffUser?: { id: string; role: UserRole },
@@ -90,7 +127,7 @@ export class CustomersController {
     return this.customersService.updatePhotograph(
       id,
       {
-        base64: cameraPhotoBase64,
+        base64: photoBase64 || cameraPhotoBase64,
         fileUrl: photoUrl,
         source: photoSource || PhotoSource.CAMERA_CAPTURE,
       },

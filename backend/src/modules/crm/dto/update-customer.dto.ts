@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsEnum, IsNumber } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { CustomerStatus, IdType } from '@prisma/client';
 
@@ -17,6 +17,11 @@ export class UpdateCustomerDto {
   @IsOptional()
   @IsString()
   otherNames?: string;
+
+  @ApiPropertyOptional({ example: '+233244123456' })
+  @IsOptional()
+  @IsString()
+  telephone?: string;
 
   @ApiPropertyOptional({ example: '+233208901234' })
   @IsOptional()
@@ -43,6 +48,11 @@ export class UpdateCustomerDto {
   @IsString()
   occupation?: string;
 
+  @ApiPropertyOptional({ example: '1988-05-24', description: 'Date of Birth (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsString()
+  dateOfBirth?: string;
+
   @ApiPropertyOptional({ enum: IdType })
   @IsOptional()
   @IsEnum(IdType)
@@ -62,5 +72,20 @@ export class UpdateCustomerDto {
   @IsOptional()
   @IsString()
   assignedAgentId?: string;
+
+  @ApiPropertyOptional({ example: 'INSTALMENT', description: 'Payment term: OUTRIGHT or INSTALMENT' })
+  @IsOptional()
+  @IsString()
+  paymentTerms?: string;
+
+  @ApiPropertyOptional({ example: 6, description: 'Instalment period in months: 3, 6, 9, 12' })
+  @IsOptional()
+  @IsNumber()
+  instalmentMonths?: number;
+
+  @ApiPropertyOptional({ example: 150000, description: 'Custom total agreed price for customer allocations' })
+  @IsOptional()
+  @IsNumber()
+  totalAgreedPrice?: number;
 }
 

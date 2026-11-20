@@ -27,6 +27,13 @@ import { UserRole } from '@prisma/client';
 export class FinancialsController {
   constructor(private readonly financialsService: FinancialsService) {}
 
+  @Get('expenses')
+  @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.MANAGING_DIRECTOR, UserRole.ADMINISTRATOR)
+  @ApiOperation({ summary: 'List all operational and corporate expenses' })
+  async getExpenses(@Query() query: any) {
+    return this.financialsService.getExpenses(query);
+  }
+
   @Post('expenses')
   @Roles(UserRole.SUPER_ADMINISTRATOR, UserRole.ADMINISTRATOR)
   @ApiOperation({

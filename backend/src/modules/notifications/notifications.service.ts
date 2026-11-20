@@ -6,6 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import {
+  AllocationStatus,
   NotificationChannel,
   NotificationStatus,
   NotificationTriggerEvent,
@@ -714,5 +715,258 @@ export class NotificationsService implements OnModuleInit {
         templateVariables: vars,
       });
     }
+  }
+
+  /**
+   * Preview active instalment plans & pending balances for automated reminders
+   */
+  async getPaymentDueRemindersPreview() {
+    const allocations = await this.prisma.plotAllocation.findMany({
+      where: {
+        status: { in: [AllocationStatus.RESERVED, AllocationStatus.ACTIVE_INSTALMENT] },
+        outstandingBalance: { gt: 0 },
+      },
+      include: {
+        customer: true,
+        plot: {
+          include: {
+            landLocation: true,
+          },
+        },
+      },
+      orderBy: { allocatedAt: 'desc' },
+    });
+
+    const now = new Date();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const dueDateFormatted = `${endOfMonth.getDate()} ${endOfMonth.toLocaleString('en-US', { month: 'short' })} ${endOfMonth.getFullYear()}`;
+
+    const items = allocations.map((alloc) => {
+      const balance = Number(alloc.outstandingBalance);
+      const totalAgreed = Number(alloc.agreedPrice);
+      const months = alloc.paymentPlanMonths || 1;
+      const monthlyAmount = months > 1 ? Math.min(balance, Math.round(totalAgreed / months)) : balance;
+
+      return {
+        allocationId: alloc.id,
+        allocationNumber: alloc.allocationNumber,
+        customerId: alloc.customer.id,
+        customerNumber: alloc.customer.customerNumber,
+        customerName: `${alloc.customer.firstName} ${alloc.customer.lastName}`,
+        telephone: alloc.customer.telephone,
+        email: alloc.customer.email,
+        landLocation: alloc.plot?.landLocation?.name || 'General Allocation',
+        plotNumber: alloc.plot?.plotNumber ? `Plot ${alloc.plot.plotNumber}` : 'Allocated Plot',
+        paymentPlanMonths: months,
+        outstandingBalance: balance,
+        dueAmount: monthlyAmount,
+        dueDate: dueDateFormatted,
+      };
+    });
+
+    return {
+      totalEligible: items.length,
+      totalDueAmount: items.reduce((acc, curr) => acc + curr.dueAmount, 0),
+      totalOutstanding: items.reduce((acc, curr) => acc + curr.outstandingBalance, 0),
+      dueDate: dueDateFormatted,
+      customers: items,
+    };
+  }
+
+  /**
+   * Broadcast automated monthly payment reminders via WhatsApp & Email
+   */
+  async broadcastPaymentDueReminders(allocationIds?: string[]) {
+    const preview = await this.getPaymentDueRemindersPreview();
+    const targets = allocationIds && allocationIds.length > 0
+      ? preview.customers.filter((c) => allocationIds.includes(c.allocationId))
+      : preview.customers;
+
+    let successfulCount = 0;
+    let failedCount = 0;
+    const results: any[] = [];
+
+    for (const target of targets) {
+      try {
+        const allocation = await this.prisma.plotAllocation.findUnique({
+          where: { id: target.allocationId },
+          include: {
+            customer: true,
+            plot: { include: { landLocation: true } },
+          },
+        });
+
+        if (allocation && allocation.customer) {
+          await this.triggerPaymentReminder(
+            allocation,
+            allocation.customer,
+            target.dueAmount,
+            target.dueDate,
+          );
+          successfulCount++;
+          results.push({
+            customerNumber: target.customerNumber,
+            customerName: target.customerName,
+            status: 'SENT',
+            dueAmount: target.dueAmount,
+          });
+        }
+      } catch (err: any) {
+        this.logger.error(`Failed to trigger reminder for ${target.customerNumber}: ${err.message}`);
+        failedCount++;
+        results.push({
+          customerNumber: target.customerNumber,
+          customerName: target.customerName,
+          status: 'FAILED',
+          error: err.message,
+        });
+      }
+    }
+
+    return {
+      message: `Successfully processed ${successfulCount} reminder notifications`,
+      totalTargeted: targets.length,
+      successfulCount,
+      failedCount,
+      results,
+    };
+  }
+
+  /**
+   * Broadcast promotional announcements and new site launches
+   */
+  async broadcastPromo(dto: {
+    title: string;
+    message: string;
+    location?: string;
+    offer?: string;
+    channel?: 'ALL' | 'WHATSAPP' | 'EMAIL';
+    customerIds?: string[];
+  }) {
+    const where: any = { status: 'ACTIVE' };
+    if (dto.customerIds && dto.customerIds.length > 0) {
+      where.id = { in: dto.customerIds };
+    }
+
+    const customers = await this.prisma.customer.findMany({
+      where,
+      select: { id: true, customerNumber: true, firstName: true, lastName: true, telephone: true, email: true },
+    });
+
+    const channel = dto.channel || 'ALL';
+    let dispatchedCount = 0;
+    const timestamp = Date.now();
+
+    for (const c of customers) {
+      const vars = {
+        customerName: `${c.firstName} ${c.lastName}`,
+        promoTitle: dto.title,
+        promoMessage: dto.message,
+        promoLocation: dto.location || 'All Prime Locations',
+        promoOffer: dto.offer || 'Flexible Outright & Instalment Payment Terms',
+      };
+
+      if (channel === 'ALL' || channel === 'WHATSAPP') {
+        await this.sendNotification({
+          customerId: c.id,
+          channel: NotificationChannel.WHATSAPP,
+          event: NotificationTriggerEvent.PROMO_BROADCAST,
+          idempotencyKey: `PROMO-${timestamp}-${c.id}-WA`,
+          templateVariables: vars,
+        });
+        dispatchedCount++;
+      }
+
+      if ((channel === 'ALL' || channel === 'EMAIL') && c.email) {
+        await this.sendNotification({
+          customerId: c.id,
+          channel: NotificationChannel.EMAIL,
+          event: NotificationTriggerEvent.PROMO_BROADCAST,
+          idempotencyKey: `PROMO-${timestamp}-${c.id}-EM`,
+          templateVariables: vars,
+        });
+        dispatchedCount++;
+      }
+    }
+
+    return {
+      message: 'Promotional campaign broadcast dispatched successfully',
+      targetedCustomers: customers.length,
+      dispatchedCount,
+    };
+  }
+
+  /**
+   * Send official Document Ready For Collection notice via WhatsApp & Email
+   */
+  async triggerDocumentReady(dto: {
+    customerId: string;
+    allocationId?: string;
+    documentType?: string;
+    collectionOffice?: string;
+    officeHours?: string;
+  }) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: dto.customerId },
+      include: {
+        allocations: {
+          include: { plot: { include: { landLocation: true } } },
+          take: 5,
+        },
+      },
+    });
+
+    if (!customer) {
+      throw new NotFoundException(`Customer with ID ${dto.customerId} not found`);
+    }
+
+    let landLocation = 'Registered Site';
+    let plotNumber = 'Allocated Plots';
+
+    if (dto.allocationId) {
+      const alloc = customer.allocations.find((a) => a.id === dto.allocationId);
+      if (alloc) {
+        landLocation = alloc.plot?.landLocation?.name || landLocation;
+        plotNumber = alloc.plot?.plotNumber ? `Plot ${alloc.plot.plotNumber}` : plotNumber;
+      }
+    } else if (customer.allocations && customer.allocations.length > 0) {
+      const plots = customer.allocations.map((a) => a.plot?.plotNumber).filter(Boolean);
+      plotNumber = plots.length > 0 ? plots.map((p) => `Plot ${p}`).join(', ') : plotNumber;
+      landLocation = customer.allocations[0].plot?.landLocation?.name || landLocation;
+    }
+
+    const vars = {
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      customerNumber: customer.customerNumber,
+      documentType: dto.documentType || 'Official Indenture & Cadastral Site Plan',
+      landLocation,
+      plotNumber,
+      collectionOffice: dto.collectionOffice || 'Head Office Conveyancing & Client Relations Desk',
+      officeHours: dto.officeHours || 'Monday – Friday, 8:30 AM – 5:00 PM',
+    };
+
+    const timestamp = Date.now();
+    await this.sendNotification({
+      customerId: customer.id,
+      channel: NotificationChannel.WHATSAPP,
+      event: NotificationTriggerEvent.DOCUMENT_READY,
+      idempotencyKey: `DOCREADY-${timestamp}-${customer.id}-WA`,
+      templateVariables: vars,
+    });
+
+    if (customer.email) {
+      await this.sendNotification({
+        customerId: customer.id,
+        channel: NotificationChannel.EMAIL,
+        event: NotificationTriggerEvent.DOCUMENT_READY,
+        idempotencyKey: `DOCREADY-${timestamp}-${customer.id}-EM`,
+        templateVariables: vars,
+      });
+    }
+
+    return {
+      success: true,
+      message: `Document collection notice sent to ${customer.firstName} ${customer.lastName}`,
+    };
   }
 }

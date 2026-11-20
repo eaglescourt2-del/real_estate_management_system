@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
+const PDFDocument = require('pdfkit');
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -14,8 +14,14 @@ export interface FinancialPdfData {
   periodDescription: string;
   revenueSummary: Record<string, number>;
   expenseSummary: Record<string, number>;
+  operationalExpenseSummary?: Record<string, number>;
   totalRevenue: number;
   totalExpenses: number;
+  totalOperationalExpenses?: number;
+  netOperationalProfit?: number;
+  totalLandownerDisbursements?: number;
+  totalRefundDisbursements?: number;
+  netOverallCashFlow?: number;
   netOperatingIncome: number;
   totalReceivablesOutstanding: number;
   generatedByName: string;
@@ -59,22 +65,41 @@ export class FinancialPdfService {
         doc.fontSize(10).font('Helvetica')
           .text(data.periodDescription, 360, 134, { width: 180, align: 'right' });
 
-        // Financial Overview Snapshot Cards
-        let y = 170;
-        doc.rect(40, y, 160, 50).fill('#ecfdf5').stroke('#a7f3d0');
-        doc.fillColor('#065f46').fontSize(8.5).font('Helvetica-Bold').text('TOTAL CASH REVENUE', 50, y + 10);
-        doc.fontSize(12).text(`${data.currencySymbol} ${data.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 50, y + 25);
+        // Financial Overview Snapshot Cards - Tier 1: Core Operations
+        let y = 168;
+        const opExp = data.totalOperationalExpenses !== undefined ? data.totalOperationalExpenses : data.totalExpenses;
+        const netOp = data.netOperationalProfit !== undefined ? data.netOperationalProfit : data.netOperatingIncome;
+        const loDisb = data.totalLandownerDisbursements !== undefined ? data.totalLandownerDisbursements : 0;
+        const netCash = data.netOverallCashFlow !== undefined ? data.netOverallCashFlow : data.netOperatingIncome;
 
-        doc.rect(215, y, 160, 50).fill('#fef2f2').stroke('#fca5a5');
-        doc.fillColor('#991b1b').fontSize(8.5).font('Helvetica-Bold').text('TOTAL OPERATING EXPENSES', 225, y + 10);
-        doc.fontSize(12).text(`${data.currencySymbol} ${data.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 225, y + 25);
+        doc.rect(40, y, 160, 42).fill('#ecfdf5').stroke('#a7f3d0');
+        doc.fillColor('#065f46').fontSize(7.5).font('Helvetica-Bold').text('GROSS REVENUE INFLOW', 48, y + 8);
+        doc.fontSize(11).text(`${data.currencySymbol} ${data.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 48, y + 22);
 
-        doc.rect(390, y, 165, 50).fill(data.netOperatingIncome >= 0 ? '#f0fdf4' : '#fff1f2').stroke(data.netOperatingIncome >= 0 ? '#86efac' : '#fecdd3');
-        doc.fillColor(data.netOperatingIncome >= 0 ? '#166534' : '#9f1239').fontSize(8.5).font('Helvetica-Bold').text('NET CASH SURPLUS / DEFICIT', 400, y + 10);
-        doc.fontSize(12).text(`${data.currencySymbol} ${data.netOperatingIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 400, y + 25);
+        doc.rect(215, y, 160, 42).fill('#fffbeb').stroke('#fde68a');
+        doc.fillColor('#92400e').fontSize(7.5).font('Helvetica-Bold').text('OPERATIONAL EXPENSES (EXCL. LO)', 223, y + 8);
+        doc.fontSize(11).text(`${data.currencySymbol} ${opExp.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 223, y + 22);
+
+        doc.rect(390, y, 165, 42).fill(netOp >= 0 ? '#f0fdf4' : '#fff1f2').stroke(netOp >= 0 ? '#86efac' : '#fecdd3');
+        doc.fillColor(netOp >= 0 ? '#166534' : '#9f1239').fontSize(7.5).font('Helvetica-Bold').text('NET OPERATIONAL PROFIT', 398, y + 8);
+        doc.fontSize(11).text(`${data.currencySymbol} ${netOp.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 398, y + 22);
+
+        // Tier 2: Landowner Disbursements & Overall Cash Position
+        y += 48;
+        doc.rect(40, y, 160, 38).fill('#f5f3ff').stroke('#ddd6fe');
+        doc.fillColor('#5b21b6').fontSize(7.5).font('Helvetica-Bold').text('LANDOWNER DISBURSEMENTS', 48, y + 7);
+        doc.fontSize(10.5).text(`${data.currencySymbol} ${loDisb.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 48, y + 20);
+
+        doc.rect(215, y, 160, 38).fill('#f8fafc').stroke('#cbd5e1');
+        doc.fillColor('#334155').fontSize(7.5).font('Helvetica-Bold').text('TOTAL OUTFLOW (ALL EXPENDITURES)', 223, y + 7);
+        doc.fontSize(10.5).text(`${data.currencySymbol} ${data.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 223, y + 20);
+
+        doc.rect(390, y, 165, 38).fill(netCash >= 0 ? '#f0fdf4' : '#fff1f2').stroke(netCash >= 0 ? '#86efac' : '#fecdd3');
+        doc.fillColor(netCash >= 0 ? '#166534' : '#9f1239').fontSize(7.5).font('Helvetica-Bold').text('NET OVERALL CASH POSITION', 398, y + 7);
+        doc.fontSize(10.5).text(`${data.currencySymbol} ${netCash.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 398, y + 20);
 
         // Section 1: Cash Receipts by Category
-        y = 235;
+        y = 265;
         doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold')
           .text('1. CASH RECEIPTS & LAND SALES REVENUE', 40, y);
 

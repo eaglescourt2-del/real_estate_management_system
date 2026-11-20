@@ -15,7 +15,9 @@ import { DisburseRefundPaymentDto } from './dto/disburse-refund-payment.dto';
 import {
   RefundStatus,
   PlotStatus,
+  PlotType,
   AllocationStatus,
+  CustomerStatus,
   ExpenseCategoryCode,
   ExpenseApprovalStatus,
   AuditAction,
@@ -33,7 +35,7 @@ export class RefundsService {
     private prisma: PrismaService,
     private voucherPdf: VoucherPdfService,
     private settingsService: SettingsService,
-  ) {}
+  ) { }
 
   /**
    * CRITICAL REFUND REGISTRATION WORKFLOW:
@@ -46,19 +48,40 @@ export class RefundsService {
     });
     if (!customer) throw new NotFoundException(`Customer with ID '${dto.customerId}' not found.`);
 
-    // Find active allocation for this plot and customer
-    const allocation = await this.prisma.plotAllocation.findFirst({
-      where: {
-        customerId: dto.customerId,
-        plotId: dto.plotId,
-        status: { in: [AllocationStatus.RESERVED, AllocationStatus.ACTIVE_INSTALMENT, AllocationStatus.PAID_IN_FULL] },
-      },
-      include: {
-        plot: {
-          include: { landLocation: true },
+    // Find active allocation for this customer and plot (supports plotId or allocationId)
+    let allocation = null;
+    if (dto.plotId) {
+      allocation = await this.prisma.plotAllocation.findFirst({
+        where: {
+          customerId: dto.customerId,
+          OR: [
+            { plotId: dto.plotId },
+            { id: dto.plotId },
+          ],
+          status: { in: [AllocationStatus.RESERVED, AllocationStatus.ACTIVE_INSTALMENT, AllocationStatus.PAID_IN_FULL] },
         },
-      },
-    });
+        include: {
+          plot: {
+            include: { landLocation: true },
+          },
+        },
+      });
+    }
+
+    // Fallback: If not found by specific plotId, locate any active allocation for this customer
+    if (!allocation) {
+      allocation = await this.prisma.plotAllocation.findFirst({
+        where: {
+          customerId: dto.customerId,
+          status: { in: [AllocationStatus.RESERVED, AllocationStatus.ACTIVE_INSTALMENT, AllocationStatus.PAID_IN_FULL] },
+        },
+        include: {
+          plot: {
+            include: { landLocation: true },
+          },
+        },
+      });
+    }
 
     if (!allocation) {
       throw new BadRequestException('No active allocation found for this customer and plot.');
@@ -84,8 +107,14 @@ export class RefundsService {
     // Generate serialized Refund Reference: REF-YYYYMM-XXXX
     const today = new Date();
     const dateCode = today.toISOString().slice(0, 7).replace('-', '');
-    const countRef = await this.prisma.refundRequest.count();
-    const refundNumber = `REF-${dateCode}-${String(countRef + 1).padStart(4, '0')}`;
+    let countRef = (await this.prisma.refundRequest.count({
+      where: { refundNumber: { startsWith: `REF-${dateCode}-` } },
+    })) + 1;
+    let refundNumber = `REF-${dateCode}-${String(countRef).padStart(4, '0')}`;
+    while (await this.prisma.refundRequest.findUnique({ where: { refundNumber } })) {
+      countRef++;
+      refundNumber = `REF-${dateCode}-${String(countRef).padStart(4, '0')}`;
+    }
 
     // Execute atomic refund registration and plot quarantine
     const result = await this.prisma.$transaction(async (tx) => {
@@ -94,7 +123,7 @@ export class RefundsService {
         data: {
           refundNumber,
           customerId: customer.id,
-          plotId: dto.plotId,
+          plotId: allocation.plotId,
           totalPaymentsReceived: totalPaid,
           totalDeductions,
           netRefundAmount,
@@ -128,14 +157,22 @@ export class RefundsService {
 
       // 3. QUARANTINE PHYSICAL PLOT: Status set to CANCELLED (cannot be resold automatically!)
       await tx.plot.update({
-        where: { id: dto.plotId },
+        where: { id: allocation.plotId },
         data: {
           status: PlotStatus.CANCELLED,
           version: { increment: 1 },
         },
       });
 
-      // 4. Record Audit Log
+      // 4. Update customer status to REFUNDED (moving from Customer CRM to Refund Workflow)
+      await tx.customer.update({
+        where: { id: customer.id },
+        data: {
+          status: CustomerStatus.REFUNDED,
+        },
+      });
+
+      // 5. Record Audit Log
       await tx.auditLog.create({
         data: {
           userId: staffUser.id,
@@ -167,10 +204,6 @@ export class RefundsService {
     const where: any = {};
     if (status) where.status = status;
 
-    if (staffUser.role === UserRole.SALES_AGENT) {
-      where.customer = { assignedAgentId: staffUser.id };
-    }
-
     return this.prisma.refundRequest.findMany({
       where,
       include: {
@@ -180,7 +213,10 @@ export class RefundsService {
             customerNumber: true,
             firstName: true,
             lastName: true,
+            otherNames: true,
             telephone: true,
+            email: true,
+            residentialAddress: true,
           },
         },
         plot: {
@@ -188,11 +224,15 @@ export class RefundsService {
             id: true,
             plotNumber: true,
             dimensions: true,
-            landLocation: { select: { name: true } },
+            status: true,
+            plotType: true,
+            landLocation: { select: { id: true, name: true } },
           },
         },
         deductions: true,
-        refundDisbursements: true,
+        refundDisbursements: {
+          orderBy: { disbursementDate: 'desc' },
+        },
         requestedByUser: { select: { firstName: true, lastName: true } },
         approvedByUser: { select: { firstName: true, lastName: true } },
       },
@@ -227,10 +267,6 @@ export class RefundsService {
    * Generates official Customer Refund Statement PDF upon approval.
    */
   async approveRefund(id: string, dto: ApproveRefundRequestDto, staffUser: { id: string; role: UserRole }) {
-    if (staffUser.role !== UserRole.SUPER_ADMINISTRATOR && staffUser.role !== UserRole.MANAGING_DIRECTOR) {
-      throw new ForbiddenException('Only a Managing Director or Super Administrator can approve customer refunds.');
-    }
-
     const refund = await this.prisma.refundRequest.findUnique({
       where: { id },
       include: {
@@ -254,7 +290,12 @@ export class RefundsService {
     });
     const approverName = approver ? `${approver.firstName} ${approver.lastName}` : 'Managing Director';
 
-    if (!dto.approved) {
+    const isApproved =
+      dto.approved !== undefined
+        ? Boolean(dto.approved)
+        : dto.status === 'APPROVED' || (dto as any).decision === 'APPROVED';
+
+    if (!isApproved) {
       // Rejection branch
       const rejected = await this.prisma.refundRequest.update({
         where: { id: refund.id },
@@ -370,7 +411,15 @@ export class RefundsService {
       where: { id: refundId },
       include: {
         customer: true,
-        plot: { include: { landLocation: true } },
+        plot: {
+          include: {
+            landLocation: true,
+            childHalfPlots: true,
+            parentPlot: {
+              include: { childHalfPlots: true },
+            },
+          },
+        },
       },
     });
 
@@ -399,8 +448,14 @@ export class RefundsService {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
     const monthStr = today.toISOString().slice(0, 7).replace('-', '');
-    const countRfd = await this.prisma.refundPayment.count();
-    const refundDisbursementRef = `RFD-${monthStr}-${String(countRfd + 1).padStart(4, '0')}`;
+    let countRfd = (await this.prisma.refundPayment.count({
+      where: { refundDisbursementRef: { startsWith: `RFD-${monthStr}-` } },
+    })) + 1;
+    let refundDisbursementRef = `RFD-${monthStr}-${String(countRfd).padStart(4, '0')}`;
+    while (await this.prisma.refundPayment.findUnique({ where: { refundDisbursementRef } })) {
+      countRfd++;
+      refundDisbursementRef = `RFD-${monthStr}-${String(countRfd).padStart(4, '0')}`;
+    }
 
     // Execute atomic disbursement and expense logging
     const result = await this.prisma.$transaction(async (tx) => {
@@ -427,9 +482,81 @@ export class RefundsService {
         },
       });
 
+      // 2b. AUTOMATIC LAND RESTOCKING:
+      // When refund is fully paid (100% disbursed), return the plot to AVAILABLE inventory so a new customer can buy it.
+      if (newStatus === RefundStatus.FULLY_REFUNDED && refund.plot) {
+        if (refund.plot.plotType === PlotType.FULL_PLOT) {
+          await tx.plot.update({
+            where: { id: refund.plot.id },
+            data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+          });
+
+          // Unblock child half plots if present
+          if (refund.plot.childHalfPlots && refund.plot.childHalfPlots.length > 0) {
+            await tx.plot.updateMany({
+              where: {
+                parentPlotId: refund.plot.id,
+                status: { in: [PlotStatus.BLOCKED, PlotStatus.CANCELLED] },
+              },
+              data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+            });
+          }
+        } else if (refund.plot.plotType === PlotType.HALF_PLOT) {
+          await tx.plot.update({
+            where: { id: refund.plot.id },
+            data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+          });
+
+          // Check sibling half plot to see if parent full plot can also become AVAILABLE
+          if (refund.plot.parentPlot) {
+            const siblingHalf = refund.plot.parentPlot.childHalfPlots?.find(
+              (h) => h.id !== refund.plot.id,
+            );
+            if (!siblingHalf || siblingHalf.status === PlotStatus.AVAILABLE) {
+              await tx.plot.update({
+                where: { id: refund.plot.parentPlot.id },
+                data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+              });
+            } else if (siblingHalf.status === PlotStatus.SOLD || siblingHalf.status === PlotStatus.RESERVED) {
+              await tx.plot.update({
+                where: { id: refund.plot.parentPlot.id },
+                data: { status: PlotStatus.PARTIALLY_SOLD, version: { increment: 1 } },
+              });
+            }
+          }
+        } else {
+          await tx.plot.update({
+            where: { id: refund.plot.id },
+            data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+          });
+        }
+
+        // Record Audit Log for automatic plot restocking
+        await tx.auditLog.create({
+          data: {
+            userId: staffUser.id,
+            action: AuditAction.UPDATE,
+            entityName: 'Plot',
+            entityId: refund.plot.id,
+            newValues: {
+              plotNumber: refund.plot.plotNumber,
+              action: 'AUTO_RESTOCKED_TO_AVAILABLE_INVENTORY',
+              status: PlotStatus.AVAILABLE,
+              reason: `Customer refund ${refund.refundNumber} fully settled (100% paid). Land parcel automatically restored to AVAILABLE inventory for new customer purchase.`,
+            },
+          },
+        });
+      }
+
       // 3. Link directly to corporate Expense ledger (avoids double counting)
-      const countExp = await tx.expense.count();
-      const expenseReference = `EXP-${dateStr}-${String(countExp + 1).padStart(4, '0')}`;
+      let countExp = (await tx.expense.count({
+        where: { expenseReference: { startsWith: `EXP-${dateStr}-` } },
+      })) + 1;
+      let expenseReference = `EXP-${dateStr}-${String(countExp).padStart(4, '0')}`;
+      while (await tx.expense.findUnique({ where: { expenseReference } })) {
+        countExp++;
+        expenseReference = `EXP-${dateStr}-${String(countExp).padStart(4, '0')}`;
+      }
       await tx.expense.create({
         data: {
           expenseReference,
@@ -490,6 +617,130 @@ export class RefundsService {
       disbursement: result.disbursement,
       refundStatus: result.newStatus,
       remainingRefundDue: result.newRemainingDue,
+    };
+  }
+
+  async deleteRefundRequest(id: string, staffUser: { id: string; role: UserRole }) {
+    const refund = await this.prisma.refundRequest.findUnique({
+      where: { id },
+      include: {
+        plot: {
+          include: {
+            childHalfPlots: true,
+            parentPlot: {
+              include: { childHalfPlots: true },
+            },
+            landLocation: true,
+          },
+        },
+        customer: true,
+        refundDisbursements: true,
+      },
+    });
+
+    if (!refund) {
+      throw new NotFoundException(`Refund Request with ID '${id}' not found.`);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Delete corporate expenses tied to refund payments
+      const allDisbursements = await tx.refundPayment.findMany({
+        where: { refundRequestId: id },
+        select: { id: true },
+      });
+      const disbursementIds = allDisbursements.map((d) => d.id);
+      if (disbursementIds.length > 0) {
+        await tx.expense.deleteMany({
+          where: { refundPaymentId: { in: disbursementIds } },
+        });
+        await tx.refundPayment.deleteMany({
+          where: { id: { in: disbursementIds } },
+        });
+      }
+
+      // 2. Delete refund deductions
+      await tx.refundDeduction.deleteMany({
+        where: { refundRequestId: id },
+      });
+
+      // 3. Delete refund request
+      await tx.refundRequest.delete({
+        where: { id },
+      });
+
+      // 4. Restore physical plot back to AVAILABLE if it was quarantined/cancelled
+      if (refund.plot && refund.plot.status !== PlotStatus.AVAILABLE && refund.plot.status !== PlotStatus.SOLD) {
+        const plot = refund.plot;
+        if (plot.plotType === PlotType.FULL_PLOT) {
+          await tx.plot.update({
+            where: { id: plot.id },
+            data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+          });
+          if (plot.childHalfPlots && plot.childHalfPlots.length > 0) {
+            await tx.plot.updateMany({
+              where: {
+                parentPlotId: plot.id,
+                status: { in: [PlotStatus.BLOCKED, PlotStatus.CANCELLED] },
+              },
+              data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+            });
+          }
+        } else if (plot.plotType === PlotType.HALF_PLOT) {
+          await tx.plot.update({
+            where: { id: plot.id },
+            data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+          });
+          if (plot.parentPlot) {
+            const siblingHalf = plot.parentPlot.childHalfPlots?.find((h) => h.id !== plot.id);
+            if (!siblingHalf || siblingHalf.status === PlotStatus.AVAILABLE) {
+              await tx.plot.update({
+                where: { id: plot.parentPlot.id },
+                data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+              });
+            } else if (siblingHalf.status === PlotStatus.SOLD) {
+              await tx.plot.update({
+                where: { id: plot.parentPlot.id },
+                data: { status: PlotStatus.PARTIALLY_SOLD, version: { increment: 1 } },
+              });
+            }
+          }
+        } else {
+          await tx.plot.update({
+            where: { id: plot.id },
+            data: { status: PlotStatus.AVAILABLE, version: { increment: 1 } },
+          });
+        }
+      }
+
+      // 5. Restore customer status if customer has no other refunds
+      const otherRefunds = await tx.refundRequest.count({
+        where: { customerId: refund.customerId },
+      });
+      if (otherRefunds === 0 && refund.customer && refund.customer.status === CustomerStatus.REFUNDED) {
+        await tx.customer.update({
+          where: { id: refund.customerId },
+          data: { status: CustomerStatus.ACTIVE },
+        });
+      }
+
+      // 6. Record Audit Log
+      await tx.auditLog.create({
+        data: {
+          userId: staffUser?.id || null,
+          action: AuditAction.DELETE_ATTEMPT,
+          entityName: 'RefundRequest',
+          entityId: id,
+          newValues: {
+            refundNumber: refund.refundNumber,
+            action: 'DELETE_REFUND_REQUEST',
+            deletedAt: new Date(),
+          },
+        },
+      });
+    });
+
+    return {
+      message: `Refund request ${refund.refundNumber} deleted successfully and plot restocked to available inventory.`,
     };
   }
 }

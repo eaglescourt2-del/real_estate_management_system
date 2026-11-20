@@ -89,9 +89,12 @@ model Customer {
   residentialAddress    String
   gpsAddress            String?             // Ghana Digital Post Address (e.g. GA-183-9020)
   occupation            String?
+  dateOfBirth           DateTime?           // Applicant Date of Birth
   idType                IdType              @default(GHANA_CARD)
   idNumber              String?             // e.g. GHA-712345678-9
   status                CustomerStatus      @default(ACTIVE)
+  isDeleted             Boolean             @default(false)
+  deletedAt             DateTime?
   
   assignedAgentId       String
   assignedAgent         User                @relation("AgentCustomers", fields: [assignedAgentId], references: [id])
@@ -115,6 +118,7 @@ model Customer {
   @@index([telephone])
   @@index([assignedAgentId])
   @@index([status])
+  @@index([isDeleted])
 }
 
 enum PhotoSource {
@@ -160,11 +164,13 @@ model LandLocation {
   region                String
   district              String
   geographicalAddress   String
-  latitude              Decimal             @db.Decimal(10, 8)
-  longitude             Decimal             @db.Decimal(11, 8)
+  latitude              Decimal?            @db.Decimal(10, 8)
+  longitude             Decimal?            @db.Decimal(11, 8)
   totalLandSizeAcres    Decimal             @db.Decimal(10, 2)
   totalPlotsCount       Int
   plotDimensionsDesc    String              @default("70 x 100 ft (Full Plot) / 50 x 70 ft (Half Plot)")
+  landownerName         String?
+  purchasePrice         Decimal?            @db.Decimal(14, 2)
   standardFullPlotPrice Decimal             @db.Decimal(14, 2)
   standardHalfPlotPrice Decimal             @db.Decimal(14, 2)
   isActive              Boolean             @default(true)
@@ -694,6 +700,8 @@ enum NotificationTriggerEvent {
   REFUND_APPROVAL_STATUS
   REFUND_PAYMENT_DISBURSED
   PLOT_ALLOCATION_CONFIRMATION
+  PROMO_BROADCAST
+  DOCUMENT_READY
 }
 
 enum NotificationStatus {

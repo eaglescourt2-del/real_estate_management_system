@@ -66,5 +66,10 @@ export class RecordPaymentDto {
   @IsOptional()
   @IsDateString()
   paymentDate?: string;
+
+  @ApiPropertyOptional({ example: 'Received at Accra Head Office', description: 'Transaction notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 

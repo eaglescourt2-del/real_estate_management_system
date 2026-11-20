@@ -48,5 +48,5 @@ USER nestjs
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma db push && node dist/main"]
+CMD ["sh", "-c", "npx prisma db push && node dist/src/main.js"]
 
