@@ -209,6 +209,7 @@ export class VoucherPdfService {
 
         // Header Section
         doc.rect(40, 40, 515, 75).fill('#0f172a');
+        const logoPath = path.join(process.cwd(), 'uploads', 'logo.png');
         if (fs.existsSync(logoPath)) {
           try {
             doc.image(logoPath, 485, 47.5, { fit: [60, 60] });

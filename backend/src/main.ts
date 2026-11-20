@@ -74,8 +74,8 @@ async function bootstrap() {
     },
   });
 
-  const port = process.env.PORT || 4000;
-  await app.listen(port);
+  const port = process.env.PORT || 5000;
+  await app.listen(port, '0.0.0.0');
   logger.log(`Real Estate Backend Server listening on port ${port}`);
   logger.log(`Swagger OpenAPI Documentation available at: http://localhost:${port}/api/docs`);
 }
